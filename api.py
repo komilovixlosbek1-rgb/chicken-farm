@@ -1,722 +1,886 @@
-# api.py
-import os
 import time
-import hmac
-import hashlib
-import json
-from urllib.parse import parse_qsl
+import aiosqlite
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from database import (
-    init_db,
-    get_user,
-    create_user,
-    get_chickens,
-    get_settings,
-    buy_chicken,
-    get_egg_storage,
-    exchange_eggs,
-    claim_mining,
-    create_deposit,
-    create_withdraw,
-)
+DB_NAME = "chicken_farm.db"
 
 
 # =========================================================
-# SOZLAMALAR
+# DATABASE ULASH
 # =========================================================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-
-app = FastAPI(
-    title="Chicken Farm Mini App API",
-    version="1.0.0"
-)
-
-# Telegram Mini App uchun CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+async def get_db():
+    return await aiosqlite.connect(DB_NAME)
 
 
 # =========================================================
-# STARTUP
+# DATABASE YARATISH
 # =========================================================
 
-@app.on_event("startup")
-async def startup():
-    await init_db()
+async def init_db():
 
+    db = await get_db()
 
-# =========================================================
-# TELEGRAM WEB APP INIT DATA TEKSHIRISH
-# =========================================================
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT DEFAULT '',
+            first_name TEXT DEFAULT '',
+            balance INTEGER DEFAULT 10000,
+            eggs INTEGER DEFAULT 0,
+            storage_capacity INTEGER DEFAULT 1000,
+            last_mining INTEGER DEFAULT 0,
+            has_deposited INTEGER DEFAULT 0,
+            created_at INTEGER DEFAULT 0
+        )
+    """)
 
-def validate_telegram_data(init_data: str):
-    """
-    Telegram WebApp yuborgan initData ni tekshiradi.
-    BOT_TOKEN environment variable orqali beriladi.
-    """
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS chickens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            level INTEGER NOT NULL,
+            count INTEGER DEFAULT 0,
+            UNIQUE(user_id, level)
+        )
+    """)
 
-    if not init_data:
-        raise HTTPException(
-            status_code=401,
-            detail="Telegram initData yuborilmadi"
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT DEFAULT ''
+        )
+    """)
+
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            proof TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            created_at INTEGER DEFAULT 0
+        )
+    """)
+
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            card TEXT NOT NULL,
+            name TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at INTEGER DEFAULT 0
+        )
+    """)
+
+    # Boshlang‘ich sozlamalar
+    default_settings = [
+        ("card_number", "8600 **** **** ****"),
+        ("egg_exchange_rate", "10"),
+        ("mining_bonus", "100"),
+        ("mining_cooldown", "3600"),
+    ]
+
+    for key, value in default_settings:
+
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO settings
+            (key, value)
+            VALUES (?, ?)
+            """,
+            (key, value)
         )
 
-    if not BOT_TOKEN:
-        raise HTTPException(
-            status_code=500,
-            detail="BOT_TOKEN serverda sozlanmagan"
-        )
-
-    try:
-        parsed = dict(parse_qsl(init_data, keep_blank_values=True))
-
-        received_hash = parsed.pop("hash", None)
-
-        if not received_hash:
-            raise HTTPException(
-                status_code=401,
-                detail="Telegram hash mavjud emas"
-            )
-
-        data_check_string = "\n".join(
-            f"{key}={parsed[key]}"
-            for key in sorted(parsed.keys())
-        )
-
-        secret_key = hmac.new(
-            b"WebAppData",
-            BOT_TOKEN.encode(),
-            hashlib.sha256
-        ).digest()
-
-        calculated_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
-        ).hexdigest()
-
-        if not hmac.compare_digest(
-            calculated_hash,
-            received_hash
-        ):
-            raise HTTPException(
-                status_code=401,
-                detail="Telegram initData noto'g'ri"
-            )
-
-        # auth_date tekshiruvi
-        auth_date = int(parsed.get("auth_date", 0))
-
-        if auth_date:
-            # 24 soatdan eski ma'lumotni qabul qilmaymiz
-            if time.time() - auth_date > 86400:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Telegram sessiyasi eskirgan"
-                )
-
-        user_json = parsed.get("user")
-
-        if not user_json:
-            raise HTTPException(
-                status_code=401,
-                detail="Telegram user ma'lumoti topilmadi"
-            )
-
-        user = json.loads(user_json)
-
-        return user
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        print("Telegram validation error:", e)
-
-        raise HTTPException(
-            status_code=401,
-            detail="Telegram ma'lumotlarini tekshirishda xato"
-        )
+    await db.commit()
+    await db.close()
 
 
 # =========================================================
-# HEADER ORQALI USER OLISH
+# USER
 # =========================================================
 
-async def get_current_user(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
-):
-    return validate_telegram_data(
-        x_telegram_init_data
+async def get_user(user_id: int):
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT
+            user_id,
+            username,
+            first_name,
+            balance,
+            eggs,
+            storage_capacity,
+            last_mining,
+            has_deposited,
+            created_at
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
+    row = await cursor.fetchone()
 
-# =========================================================
-# MODELLAR
-# =========================================================
+    await cursor.close()
+    await db.close()
 
-class BuyChickenRequest(BaseModel):
-    level: int
+    if not row:
+        return None
 
-
-class DepositRequest(BaseModel):
-    amount: int
-    proof: str = ""
-
-
-class WithdrawRequest(BaseModel):
-    amount: int
-    card: str
-    name: str
-
-
-# =========================================================
-# TEST
-# =========================================================
-
-@app.get("/")
-async def root():
     return {
-        "status": "ok",
-        "message": "🐔 Chicken Farm API ishlayapti!"
+        "user_id": row[0],
+        "username": row[1],
+        "first_name": row[2],
+        "balance": row[3],
+        "eggs": row[4],
+        "storage_capacity": row[5],
+        "last_mining": row[6],
+        "has_deposited": row[7],
+        "created_at": row[8],
     }
 
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy"
-    }
-
-
-# =========================================================
-# USER / DASHBOARD
-# =========================================================
-
-@app.get("/api/me")
-async def me(
-    user= None
-):
-    """
-    Demo endpoint.
-    Haqiqiy Telegram Mini App uchun
-    /api/me-auth endpointidan foydalaniladi.
-    """
-
-    return {
-        "message": "Telegram Mini App API"
-    }
-
-
-@app.post("/api/auth")
-async def auth(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
-):
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
-
-    user_id = int(telegram_user["id"])
-
-    username = telegram_user.get(
-        "username",
-        ""
-    )
-
-    first_name = telegram_user.get(
-        "first_name",
-        ""
-    )
-
-    # User mavjud bo'lmasa yaratamiz
-    user = await get_user(user_id)
-
-    if not user:
-        await create_user(
-            user_id=user_id,
-            username=username,
-            first_name=first_name
-        )
-
-        user = await get_user(user_id)
-
-    return {
-        "success": True,
-        "user": user
-    }
-
-
-# =========================================================
-# DASHBOARD
-# =========================================================
-
-@app.get("/api/dashboard")
-async def dashboard(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def create_user(
+    user_id: int,
+    username: str = "",
+    first_name: str = ""
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
+    db = await get_db()
 
-    user_id = int(
-        telegram_user["id"]
-    )
-
-    user = await get_user(user_id)
-
-    if not user:
-        await create_user(
-            user_id=user_id,
-            username=telegram_user.get(
-                "username",
-                ""
-            ),
-            first_name=telegram_user.get(
-                "first_name",
-                ""
-            )
+    await db.execute(
+        """
+        INSERT OR IGNORE INTO users (
+            user_id,
+            username,
+            first_name,
+            balance,
+            eggs,
+            storage_capacity,
+            last_mining,
+            has_deposited,
+            created_at
         )
-
-        user = await get_user(user_id)
-
-    chickens = await get_chickens(
-        user_id
-    )
-
-    eggs = await get_egg_storage(
-        user_id
-    )
-
-    settings = await get_settings()
-
-    total_chickens = 0
-
-    for chicken in chickens:
-        total_chickens += int(
-            chicken.get("count", 0)
+        VALUES (?, ?, ?, 10000, 0, 1000, 0, 0, ?)
+        """,
+        (
+            user_id,
+            username,
+            first_name,
+            int(time.time())
         )
+    )
+
+    await db.commit()
+    await db.close()
+
+
+# =========================================================
+# SETTINGS
+# =========================================================
+
+async def get_setting(key: str):
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT value
+        FROM settings
+        WHERE key = ?
+        """,
+        (key,)
+    )
+
+    row = await cursor.fetchone()
+
+    await cursor.close()
+    await db.close()
+
+    if not row:
+        return None
+
+    return row[0]
+
+
+async def get_settings():
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT key, value
+        FROM settings
+        """
+    )
+
+    rows = await cursor.fetchall()
+
+    await cursor.close()
+    await db.close()
+
+    settings = {}
+
+    for key, value in rows:
+        settings[key] = value
 
     return {
-        "success": True,
-
-        "user": user,
-
-        "balance": int(
-            user.get("balance", 0)
+        "card_number": settings.get(
+            "card_number",
+            "8600 **** **** ****"
         ),
 
-        "eggs": int(eggs),
-
-        "egg_capacity": int(
-            user.get(
-                "storage_capacity",
-                1000
+        "egg_exchange_rate": int(
+            settings.get(
+                "egg_exchange_rate",
+                10
             )
         ),
 
-        "total_chickens": total_chickens,
+        "mining_bonus": int(
+            settings.get(
+                "mining_bonus",
+                100
+            )
+        ),
 
-        "chickens": chickens,
-
-        "settings": settings
+        "mining_cooldown": int(
+            settings.get(
+                "mining_cooldown",
+                3600
+            )
+        )
     }
 
 
-# =========================================================
-# FERMA
-# =========================================================
-
-@app.get("/api/farm")
-async def farm(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def set_setting(
+    key: str,
+    value: str
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
+    db = await get_db()
+
+    await db.execute(
+        """
+        INSERT INTO settings
+        (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key)
+        DO UPDATE SET value = excluded.value
+        """,
+        (key, str(value))
     )
 
-    user_id = int(
-        telegram_user["id"]
+    await db.commit()
+    await db.close()
+
+
+# =========================================================
+# CHICKENS
+# =========================================================
+
+async def get_chickens(user_id: int):
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT level, count
+        FROM chickens
+        WHERE user_id = ?
+        ORDER BY level ASC
+        """,
+        (user_id,)
     )
 
-    chickens = await get_chickens(
-        user_id
-    )
+    rows = await cursor.fetchall()
 
-    return {
-        "success": True,
-        "chickens": chickens
-    }
+    await cursor.close()
+    await db.close()
+
+    chickens = []
+
+    for level, count in rows:
+
+        chickens.append({
+            "level": level,
+            "count": count
+        })
+
+    return chickens
 
 
 # =========================================================
 # TOVUQ SOTIB OLISH
 # =========================================================
 
-@app.post("/api/chicken/buy")
-async def buy(
-    data: BuyChickenRequest,
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def buy_chicken(
+    user_id: int,
+    level: int
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
+    prices = {
+        1: 1000,
+        2: 5000,
+        3: 15000
+    }
+
+    if level not in prices:
+
+        return {
+            "success": False,
+            "message": "Tovuq darajasi noto'g'ri"
+        }
+
+    price = prices[level]
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
-    user_id = int(
-        telegram_user["id"]
+    row = await cursor.fetchone()
+
+    if not row:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Foydalanuvchi topilmadi"
+        }
+
+    balance = int(row[0])
+
+    if balance < price:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Balansingiz yetarli emas"
+        }
+
+    await db.execute(
+        """
+        UPDATE users
+        SET balance = balance - ?
+        WHERE user_id = ?
+        """,
+        (price, user_id)
     )
 
-    if data.level not in [1, 2, 3]:
-        raise HTTPException(
-            status_code=400,
-            detail="Tovuq darajasi noto'g'ri"
-        )
-
-    result = await buy_chicken(
-        user_id=user_id,
-        level=data.level
+    await db.execute(
+        """
+        INSERT INTO chickens
+        (user_id, level, count)
+        VALUES (?, ?, 1)
+        ON CONFLICT(user_id, level)
+        DO UPDATE SET count = count + 1
+        """,
+        (user_id, level)
     )
 
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=400,
-            detail=result.get(
-                "message",
-                "Tovuq sotib olib bo'lmadi"
-            )
-        )
+    await db.commit()
 
-    return result
+    await cursor.close()
+    await db.close()
+
+    return {
+        "success": True,
+        "message": f"Lv.{level} tovuq sotib olindi!",
+        "level": level,
+        "price": price
+    }
 
 
 # =========================================================
 # TUXUM OMBORI
 # =========================================================
 
-@app.get("/api/eggs")
-async def eggs(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def get_egg_storage(
+    user_id: int
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT eggs
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
-    user_id = int(
-        telegram_user["id"]
+    row = await cursor.fetchone()
+
+    await cursor.close()
+    await db.close()
+
+    if not row:
+        return 0
+
+    return int(row[0])
+
+
+# =========================================================
+# AVTOMATIK TUXUM HISOBLASH
+# =========================================================
+
+async def generate_eggs(
+    user_id: int
+):
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT level, count
+        FROM chickens
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
-    user = await get_user(
-        user_id
+    chickens = await cursor.fetchall()
+
+    if not chickens:
+
+        await cursor.close()
+        await db.close()
+
+        return 0
+
+    # 1 daqiqalik ishlab chiqarish
+    rates = {
+        1: 1,
+        2: 3,
+        3: 8
+    }
+
+    total_per_minute = 0
+
+    for level, count in chickens:
+
+        total_per_minute += (
+            rates.get(level, 0) *
+            count
+        )
+
+    # Hozirgi vaqt
+    now = int(time.time())
+
+    cursor2 = await db.execute(
+        """
+        SELECT eggs
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
-    egg_count = await get_egg_storage(
-        user_id
+    user_row = await cursor2.fetchone()
+
+    current_eggs = 0
+
+    if user_row:
+        current_eggs = int(user_row[0])
+
+    # Oddiy ishlab chiqarish:
+    # har API chaqirilganda kamida hisoblanadi
+    new_eggs = total_per_minute
+
+    capacity_cursor = await db.execute(
+        """
+        SELECT storage_capacity
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
+
+    capacity_row = await capacity_cursor.fetchone()
+
+    capacity = 1000
+
+    if capacity_row:
+        capacity = int(capacity_row[0])
+
+    new_total = min(
+        capacity,
+        current_eggs + new_eggs
+    )
+
+    await db.execute(
+        """
+        UPDATE users
+        SET eggs = ?
+        WHERE user_id = ?
+        """,
+        (new_total, user_id)
+    )
+
+    await db.commit()
+
+    await cursor.close()
+    await cursor2.close()
+    await capacity_cursor.close()
+    await db.close()
+
+    return new_total
+
+
+# =========================================================
+# TUXUM → COIN
+# =========================================================
+
+async def exchange_eggs(
+    user_id: int
+):
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT eggs
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    )
+
+    row = await cursor.fetchone()
+
+    if not row:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Foydalanuvchi topilmadi"
+        }
+
+    eggs = int(row[0])
+
+    rate = 10
+
+    cursor2 = await db.execute(
+        """
+        SELECT value
+        FROM settings
+        WHERE key = 'egg_exchange_rate'
+        """
+    )
+
+    rate_row = await cursor2.fetchone()
+
+    if rate_row:
+        rate = int(rate_row[0])
+
+    if eggs < rate:
+
+        await cursor.close()
+        await cursor2.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": f"Kamida {rate} ta tuxum kerak"
+        }
+
+    coins = eggs // rate
+
+    remaining_eggs = eggs % rate
+
+    await db.execute(
+        """
+        UPDATE users
+        SET
+            eggs = ?,
+            balance = balance + ?
+        WHERE user_id = ?
+        """,
+        (
+            remaining_eggs,
+            coins,
+            user_id
+        )
+    )
+
+    await db.commit()
+
+    await cursor.close()
+    await cursor2.close()
+    await db.close()
 
     return {
         "success": True,
-        "eggs": egg_count,
-        "capacity": user.get(
-            "storage_capacity",
-            1000
-        )
+        "message": f"{eggs} ta tuxum {coins} coin ga almashtirildi!",
+        "eggs_used": eggs - remaining_eggs,
+        "coins": coins,
+        "remaining_eggs": remaining_eggs
     }
-
-
-# =========================================================
-# TUXUMLARNI COINGA ALMASHTIRISH
-# =========================================================
-
-@app.post("/api/eggs/exchange")
-async def exchange(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
-):
-
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
-
-    user_id = int(
-        telegram_user["id"]
-    )
-
-    result = await exchange_eggs(
-        user_id
-    )
-
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=400,
-            detail=result.get(
-                "message",
-                "Almashtirish amalga oshmadi"
-            )
-        )
-
-    return result
 
 
 # =========================================================
 # MINING
 # =========================================================
 
-@app.get("/api/mining")
-async def mining(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def claim_mining(
+    user_id: int
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT
+            balance,
+            last_mining,
+            has_deposited
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
 
-    user_id = int(
-        telegram_user["id"]
-    )
+    row = await cursor.fetchone()
 
-    user = await get_user(
-        user_id
-    )
+    if not row:
 
-    last_claim = int(
-        user.get(
-            "last_mining",
-            0
-        )
-    )
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Foydalanuvchi topilmadi"
+        }
+
+    balance = int(row[0])
+    last_mining = int(row[1])
+    has_deposited = int(row[2])
+
+    # Depozit talab qilinsa
+    if not has_deposited:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Mining uchun avval depozit qiling"
+        }
 
     now = int(time.time())
 
     cooldown = 3600
 
-    remaining = max(
-        0,
-        cooldown - (
-            now - last_claim
+    if now - last_mining < cooldown:
+
+        remaining = cooldown - (
+            now - last_mining
+        )
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": f"Bonus hali tayyor emas. {remaining} soniya kuting",
+            "remaining": remaining
+        }
+
+    bonus = 100
+
+    await db.execute(
+        """
+        UPDATE users
+        SET
+            balance = balance + ?,
+            last_mining = ?
+        WHERE user_id = ?
+        """,
+        (
+            bonus,
+            now,
+            user_id
         )
     )
+
+    await db.commit()
+
+    await cursor.close()
+    await db.close()
 
     return {
         "success": True,
-        "bonus": 100,
-        "cooldown": cooldown,
-        "remaining": remaining,
-        "can_claim": remaining == 0
+        "message": f"+{bonus} coin olindi!",
+        "bonus": bonus,
+        "balance": balance + bonus
     }
-
-
-@app.post("/api/mining/claim")
-async def mining_claim(
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
-):
-
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
-
-    user_id = int(
-        telegram_user["id"]
-    )
-
-    result = await claim_mining(
-        user_id
-    )
-
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=400,
-            detail=result.get(
-                "message",
-                "Mining bonusini olib bo'lmadi"
-            )
-        )
-
-    return result
 
 
 # =========================================================
 # DEPOZIT
 # =========================================================
 
-@app.post("/api/deposit")
-async def deposit(
-    data: DepositRequest,
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
+async def create_deposit(
+    user_id: int,
+    amount: int,
+    proof: str = ""
 ):
 
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
+    if amount < 5000:
 
-    user_id = int(
-        telegram_user["id"]
-    )
+        return {
+            "success": False,
+            "message": "Minimal depozit 5 000 coin"
+        }
 
-    if data.amount < 5000:
-        raise HTTPException(
-            status_code=400,
-            detail="Minimal depozit 5 000 coin"
+    db = await get_db()
+
+    await db.execute(
+        """
+        INSERT INTO deposits
+        (
+            user_id,
+            amount,
+            proof,
+            status,
+            created_at
         )
-
-    result = await create_deposit(
-        user_id=user_id,
-        amount=data.amount,
-        proof=data.proof
-    )
-
-    return result
-
-
-# =========================================================
-# PUL CHIQARISH
-# =========================================================
-
-@app.post("/api/withdraw")
-async def withdraw(
-    data: WithdrawRequest,
-    x_telegram_init_data: str = Header(
-        default="",
-        alias="X-Telegram-Init-Data"
-    )
-):
-
-    telegram_user = validate_telegram_data(
-        x_telegram_init_data
-    )
-
-    user_id = int(
-        telegram_user["id"]
-    )
-
-    if data.amount < 10000:
-        raise HTTPException(
-            status_code=400,
-            detail="Minimal chiqarish 10 000 coin"
+        VALUES (?, ?, ?, 'pending', ?)
+        """,
+        (
+            user_id,
+            amount,
+            proof,
+            int(time.time())
         )
-
-    if len(data.card) < 8:
-        raise HTTPException(
-            status_code=400,
-            detail="Karta raqami noto'g'ri"
-        )
-
-    if len(data.name) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Ism-sharifni kiriting"
-        )
-
-    result = await create_withdraw(
-        user_id=user_id,
-        amount=data.amount,
-        card=data.card,
-        name=data.name
     )
 
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=400,
-            detail=result.get(
-                "message",
-                "Pul chiqarish so'rovi yuborilmadi"
-            )
-        )
-
-    return result
-
-
-# =========================================================
-# BOTGA ULASH UCHUN MA'LUMOT
-# =========================================================
-
-@app.get("/api/config")
-async def config():
+    await db.commit()
+    await db.close()
 
     return {
-        "app_name": "Chicken Farm",
-        "currency": "coin",
-
-        "chickens": {
-            "1": {
-                "name": "Lv.1 Tovuq",
-                "price": 1000
-            },
-            "2": {
-                "name": "Lv.2 Tovuq",
-                "price": 5000
-            },
-            "3": {
-                "name": "Lv.3 Tovuq",
-                "price": 15000
-            }
-        },
-
-        "egg_exchange_rate": 10,
-
-        "mining": {
-            "bonus": 100,
-            "cooldown": 3600
-        },
-
-        "deposit_min": 5000,
-        "withdraw_min": 10000
+        "success": True,
+        "message": "Depozit so‘rovi yuborildi!",
+        "amount": amount,
+        "status": "pending"
     }
 
 
 # =========================================================
-# SERVER
+# WITHDRAW
 # =========================================================
 
-if __name__ == "__main__":
-    import uvicorn
+async def create_withdraw(
+    user_id: int,
+    amount: int,
+    card: str,
+    name: str
+):
 
-    uvicorn.run(
-        "api:app",
-        host="0.0.0.0",
-        port=int(
-            os.getenv("PORT", 8000)
-        ),
-        reload=False
+    if amount < 10000:
+
+        return {
+            "success": False,
+            "message": "Minimal chiqarish 10 000 coin"
+        }
+
+    db = await get_db()
+
+    cursor = await db.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
     )
+
+    row = await cursor.fetchone()
+
+    if not row:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Foydalanuvchi topilmadi"
+        }
+
+    balance = int(row[0])
+
+    if balance < amount:
+
+        await cursor.close()
+        await db.close()
+
+        return {
+            "success": False,
+            "message": "Balansingiz yetarli emas"
+        }
+
+    # Pulni balansdan vaqtincha yechib qo‘yamiz
+    await db.execute(
+        """
+        UPDATE users
+        SET balance = balance - ?
+        WHERE user_id = ?
+        """,
+        (
+            amount,
+            user_id
+        )
+    )
+
+    await db.execute(
+        """
+        INSERT INTO withdrawals
+        (
+            user_id,
+            amount,
+            card,
+            name,
+            status,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, 'pending', ?)
+        """,
+        (
+            user_id,
+            amount,
+            card,
+            name,
+            int(time.time())
+        )
+    )
+
+    await db.commit()
+
+    await cursor.close()
+    await db.close()
+
+    return {
+        "success": True,
+        "message": "Pul chiqarish so‘rovi yuborildi!",
+        "amount": amount,
+        "status": "pending"
+    }
