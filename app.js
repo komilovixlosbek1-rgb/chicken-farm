@@ -1,20 +1,25 @@
-// Chicken Farm Mini App
-// app.js
-// Asosiy JavaScript funksiyalar shu faylda bo'ladi.
+```javascript
+// =========================================================
+// 🐔 CHICKEN FARM MINI APP
+// app.js — yangi API bilan moslashtirilgan
+// =========================================================
 
 const tg = window.Telegram?.WebApp;
+
 const API_URL =
     localStorage.getItem("CHICKEN_API_URL") ||
     "https://chicken-farm-630z.onrender.com";
 
 let appData = null;
+let appConfig = null;
+
 let miningRemaining = 0;
 let miningInterval = null;
 
 
-// ================================
+// =========================================================
 // TELEGRAM
-// ================================
+// =========================================================
 
 function initTelegram() {
     if (!tg) return;
@@ -22,32 +27,32 @@ function initTelegram() {
     tg.ready();
     tg.expand();
 
-    if (tg.setBackgroundColor) {
-        tg.setBackgroundColor("bg_color");
-    }
+    try {
+        if (tg.setBackgroundColor) {
+            tg.setBackgroundColor("#ffffff");
+        }
 
-    if (tg.setHeaderColor) {
-        tg.setHeaderColor("secondary_bg_color");
+        if (tg.setHeaderColor) {
+            tg.setHeaderColor("#ffffff");
+        }
+    } catch (e) {
+        console.log("Telegram UI:", e);
     }
 }
 
 
-// ================================
-// INIT DATA
-// ================================
+// =========================================================
+// TELEGRAM INIT DATA
+// =========================================================
 
 function getInitData() {
-    if (tg && tg.initData) {
-        return tg.initData;
-    }
-
-    return "";
+    return tg?.initData || "";
 }
 
 
-// ================================
-// API
-// ================================
+// =========================================================
+// API REQUEST
+// =========================================================
 
 async function apiRequest(endpoint, options = {}) {
 
@@ -57,13 +62,21 @@ async function apiRequest(endpoint, options = {}) {
         ...(options.headers || {})
     };
 
-    const response = await fetch(
-        API_URL + endpoint,
-        {
-            ...options,
-            headers
-        }
-    );
+    let response;
+
+    try {
+        response = await fetch(
+            API_URL + endpoint,
+            {
+                ...options,
+                headers
+            }
+        );
+    } catch (error) {
+        throw new Error(
+            "Server bilan bog‘lanib bo‘lmadi"
+        );
+    }
 
     let data = {};
 
@@ -74,6 +87,7 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     if (!response.ok) {
+
         throw new Error(
             data.detail ||
             data.message ||
@@ -85,26 +99,40 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 
-// ================================
+// =========================================================
 // NUMBER
-// ================================
+// =========================================================
 
 function formatNumber(number) {
-    return Number(number || 0).toLocaleString("uz-UZ");
+
+    return Number(number || 0)
+        .toLocaleString("uz-UZ");
 }
 
 
-// ================================
+// =========================================================
 // TOAST
-// ================================
+// =========================================================
 
-function showToast(message, type = "success") {
+function showToast(
+    message,
+    type = "success"
+) {
 
-    const toast = document.getElementById("toast");
-    const text = document.getElementById("toastText");
-    const icon = document.getElementById("toastIcon");
+    const toast =
+        document.getElementById("toast");
 
-    if (!toast || !text || !icon) return;
+    const text =
+        document.getElementById("toastText");
+
+    const icon =
+        document.getElementById("toastIcon");
+
+    if (!toast || !text || !icon) {
+
+        alert(message);
+        return;
+    }
 
     const icons = {
         success: "✅",
@@ -114,9 +142,12 @@ function showToast(message, type = "success") {
     };
 
     text.textContent = message;
-    icon.textContent = icons[type] || "ℹ️";
 
-    toast.className = "toast show " + type;
+    icon.textContent =
+        icons[type] || "ℹ️";
+
+    toast.className =
+        "toast show " + type;
 
     setTimeout(() => {
         toast.classList.remove("show");
@@ -124,34 +155,45 @@ function showToast(message, type = "success") {
 }
 
 
-// ================================
+// =========================================================
 // PAGE
-// ================================
+// =========================================================
 
 function showPage(page) {
 
-    document.querySelectorAll(".page").forEach(element => {
-        element.classList.remove("active");
-    });
+    document
+        .querySelectorAll(".page")
+        .forEach(element => {
+            element.classList.remove("active");
+        });
 
-    const target = document.getElementById("page-" + page);
+    const target =
+        document.getElementById(
+            "page-" + page
+        );
 
     if (target) {
         target.classList.add("active");
     }
 
-    document.querySelectorAll(".nav-item").forEach(item => {
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(item => {
 
-        item.classList.remove("active");
+            item.classList.remove("active");
 
-        if (item.dataset.page === page) {
-            item.classList.add("active");
-        }
-    });
+            if (item.dataset.page === page) {
+                item.classList.add("active");
+            }
+        });
 
     window.scrollTo(0, 0);
 
-    if (page === "farm") {
+
+    if (
+        page === "farm" ||
+        page === "dashboard"
+    ) {
         loadDashboard();
     }
 
@@ -165,136 +207,347 @@ function showPage(page) {
 }
 
 
-// ================================
+// =========================================================
+// LOAD CONFIG
+// =========================================================
+
+async function loadConfig() {
+
+    try {
+
+        appConfig =
+            await apiRequest("/api/config");
+
+        console.log(
+            "CONFIG:",
+            appConfig
+        );
+
+        updateConfigUI();
+
+        return appConfig;
+
+    } catch (error) {
+
+        console.error(
+            "Config error:",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+// =========================================================
+// UPDATE CONFIG UI
+// =========================================================
+
+function updateConfigUI() {
+
+    if (!appConfig) return;
+
+
+    // -----------------------------------------
+    // CHICKEN PRICES
+    // -----------------------------------------
+
+    const chickens =
+        appConfig.chickens || {};
+
+
+    for (let level = 1; level <= 3; level++) {
+
+        const price =
+            chickens[level]?.price;
+
+        if (price === undefined) {
+            continue;
+        }
+
+
+        const elements =
+            document.querySelectorAll(
+                `[data-chicken-price="${level}"]`
+            );
+
+        elements.forEach(element => {
+
+            element.textContent =
+                formatNumber(price) + " coin";
+
+        });
+    }
+
+
+    // -----------------------------------------
+    // EGG RATE
+    // -----------------------------------------
+
+    const eggRate =
+        Number(
+            appConfig.egg_exchange_rate || 10
+        );
+
+    document
+        .querySelectorAll(
+            "[data-egg-rate]"
+        )
+        .forEach(element => {
+
+            element.textContent =
+                `🥚 ${eggRate} tuxum = 1 coin`;
+
+        });
+
+
+    // -----------------------------------------
+    // DEPOSIT MIN
+    // -----------------------------------------
+
+    const depositMin =
+        Number(
+            appConfig.deposit_min || 5000
+        );
+
+    document
+        .querySelectorAll(
+            "[data-deposit-min]"
+        )
+        .forEach(element => {
+
+            element.textContent =
+                formatNumber(depositMin) +
+                " coin";
+
+        });
+
+
+    // -----------------------------------------
+    // WITHDRAW MIN
+    // -----------------------------------------
+
+    const withdrawMin =
+        Number(
+            appConfig.withdraw_min || 10000
+        );
+
+    document
+        .querySelectorAll(
+            "[data-withdraw-min]"
+        )
+        .forEach(element => {
+
+            element.textContent =
+                formatNumber(withdrawMin) +
+                " coin";
+
+        });
+}
+
+
+// =========================================================
 // DASHBOARD
-// ================================
+// =========================================================
 
 async function loadDashboard() {
 
     try {
 
-        const data = await apiRequest("/api/dashboard");
+        const data =
+            await apiRequest(
+                "/api/dashboard"
+            );
 
         appData = data;
 
-        const user = data.user || {};
+
+        // -----------------------------------------
+        // USER
+        // -----------------------------------------
+
+        const user =
+            data.user || {};
 
         const firstName =
             user.first_name ||
             "Fermer";
 
+
         const userName =
-            document.getElementById("userName");
+            document.getElementById(
+                "userName"
+            );
 
         const welcomeName =
-            document.getElementById("welcomeName");
+            document.getElementById(
+                "welcomeName"
+            );
+
 
         if (userName) {
-            userName.textContent = firstName;
+
+            userName.textContent =
+                firstName;
         }
+
 
         if (welcomeName) {
+
             welcomeName.textContent =
-                "Xush kelibsiz, " + firstName + "!";
+                "Xush kelibsiz, " +
+                firstName +
+                "!";
         }
 
 
+        // -----------------------------------------
         // BALANCE
+        // -----------------------------------------
 
         const balance =
-            document.getElementById("balance");
+            document.getElementById(
+                "balance"
+            );
 
         if (balance) {
+
             balance.textContent =
-                formatNumber(data.balance);
+                formatNumber(
+                    data.balance
+                );
         }
 
 
+        // -----------------------------------------
         // EGGS
+        // -----------------------------------------
 
         const eggs =
-            document.getElementById("eggCount");
+            Number(data.eggs || 0);
 
-        if (eggs) {
-            eggs.textContent =
-                formatNumber(data.eggs);
+
+        const eggCount =
+            document.getElementById(
+                "eggCount"
+            );
+
+        if (eggCount) {
+
+            eggCount.textContent =
+                formatNumber(eggs);
         }
+
 
         const eggStorage =
-            document.getElementById("eggStorage");
+            document.getElementById(
+                "eggStorage"
+            );
 
         if (eggStorage) {
+
             eggStorage.textContent =
-                formatNumber(data.eggs);
+                formatNumber(eggs);
         }
 
 
+        // -----------------------------------------
         // CAPACITY
+        // -----------------------------------------
 
         const capacity =
-            Number(data.egg_capacity || 1000);
+            Number(
+                data.egg_capacity || 1000
+            );
 
-        const capacityElement =
-            document.getElementById("eggCapacity");
 
-        if (capacityElement) {
-            capacityElement.textContent =
+        const eggCapacity =
+            document.getElementById(
+                "eggCapacity"
+            );
+
+        if (eggCapacity) {
+
+            eggCapacity.textContent =
                 formatNumber(capacity);
         }
 
 
-        // STORAGE
-
         const storage =
-            document.getElementById("storageCount");
+            document.getElementById(
+                "storageCount"
+            );
 
         if (storage) {
+
             storage.textContent =
-                formatNumber(data.eggs) +
+                formatNumber(eggs) +
                 "/" +
                 formatNumber(capacity);
         }
 
 
+        // -----------------------------------------
         // CHICKENS
+        // -----------------------------------------
 
-        const chickens =
-            document.getElementById("chickenCount");
+        const totalChickens =
+            Number(
+                data.total_chickens || 0
+            );
 
-        if (chickens) {
-            chickens.textContent =
-                formatNumber(data.total_chickens);
+
+        const chickenCount =
+            document.getElementById(
+                "chickenCount"
+            );
+
+        if (chickenCount) {
+
+            chickenCount.textContent =
+                formatNumber(
+                    totalChickens
+                );
         }
 
 
-        // PROGRESS
-
-        const eggAmount =
-            Number(data.eggs || 0);
+        // -----------------------------------------
+        // EGG PROGRESS
+        // -----------------------------------------
 
         const percentage =
-            Math.min(
-                100,
-                (eggAmount / capacity) * 100
-            );
+            capacity > 0
+                ? Math.min(
+                    100,
+                    (eggs / capacity) * 100
+                )
+                : 0;
+
 
         const progress =
-            document.getElementById("eggProgress");
+            document.getElementById(
+                "eggProgress"
+            );
 
         if (progress) {
+
             progress.style.width =
                 percentage + "%";
         }
 
 
+        // -----------------------------------------
         // FARM
+        // -----------------------------------------
 
         renderFarm(
             data.chickens || []
         );
 
 
-        // WITHDRAW
+        // -----------------------------------------
+        // WITHDRAW BALANCE
+        // -----------------------------------------
 
         const withdrawBalance =
             document.getElementById(
@@ -302,33 +555,29 @@ async function loadDashboard() {
             );
 
         if (withdrawBalance) {
+
             withdrawBalance.textContent =
-                formatNumber(data.balance) +
-                " coin";
+                formatNumber(
+                    data.balance
+                ) + " coin";
         }
 
 
-        // CARD
+        // -----------------------------------------
+        // PAYMENT SETTINGS
+        // -----------------------------------------
 
-        if (
-            data.settings &&
-            data.settings.card_number
-        ) {
+        updatePaymentSettings(
+            data.settings || {}
+        );
 
-            const card =
-                document.getElementById(
-                    "paymentCard"
-                );
-
-            if (card) {
-                card.textContent =
-                    data.settings.card_number;
-            }
-        }
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Dashboard:",
+            error
+        );
 
         showToast(
             "❌ " + error.message,
@@ -338,19 +587,90 @@ async function loadDashboard() {
 }
 
 
-// ================================
+// =========================================================
+// PAYMENT SETTINGS
+// =========================================================
+
+function updatePaymentSettings(settings) {
+
+    // Eski karta
+    const card =
+        settings.card_number || "";
+
+
+    const paymentCard =
+        document.getElementById(
+            "paymentCard"
+        );
+
+    if (
+        paymentCard &&
+        card
+    ) {
+
+        paymentCard.textContent =
+            card;
+    }
+
+
+    // Ethereum
+    const eth =
+        settings.ethereum_address ||
+        settings.eth_address ||
+        "";
+
+
+    document
+        .querySelectorAll(
+            "[data-ethereum-address]"
+        )
+        .forEach(element => {
+
+            element.textContent =
+                eth || "Admin hali kiritmagan";
+
+        });
+
+
+    // USDT Ethereum
+    const usdtEth =
+        settings.usdt_ethereum_address ||
+        settings.usdt_eth_address ||
+        "";
+
+
+    document
+        .querySelectorAll(
+            "[data-usdt-ethereum-address]"
+        )
+        .forEach(element => {
+
+            element.textContent =
+                usdtEth ||
+                "Admin hali kiritmagan";
+
+        });
+}
+
+
+// =========================================================
 // FARM
-// ================================
+// =========================================================
 
 function renderFarm(chickens) {
 
     const container =
-        document.getElementById("farmList");
+        document.getElementById(
+            "farmList"
+        );
 
     if (!container) return;
 
 
-    if (!chickens || chickens.length === 0) {
+    if (
+        !chickens ||
+        chickens.length === 0
+    ) {
 
         container.innerHTML = `
 
@@ -365,8 +685,9 @@ function renderFarm(chickens) {
                 </div>
 
                 <div class="empty-text">
-                    Fermangizni rivojlantirish uchun
-                    birinchi tovuqni sotib oling.
+                    Fermangizni rivojlantirish
+                    uchun birinchi tovuqni
+                    sotib oling.
                 </div>
 
                 <button
@@ -377,6 +698,7 @@ function renderFarm(chickens) {
                 </button>
 
             </div>
+
         `;
 
         return;
@@ -389,6 +711,7 @@ function renderFarm(chickens) {
         3: "🦃"
     };
 
+
     const rates = {
         1: 1,
         2: 3,
@@ -400,20 +723,30 @@ function renderFarm(chickens) {
         chickens.map(chicken => {
 
             const level =
-                Number(chicken.level || 1);
+                Number(
+                    chicken.level || 1
+                );
 
             const count =
-                Number(chicken.count || 0);
+                Number(
+                    chicken.count || 0
+                );
 
             const production =
-                (rates[level] || 1) * count;
+                (
+                    rates[level] || 1
+                ) * count;
+
 
             return `
 
                 <div class="farm-card">
 
                     <div class="farm-chicken">
-                        ${icons[level] || "🐔"}
+                        ${
+                            icons[level] ||
+                            "🐔"
+                        }
                     </div>
 
                     <div class="farm-info">
@@ -427,7 +760,8 @@ function renderFarm(chickens) {
                         </div>
 
                         <div class="farm-production">
-                            🥚 ${formatNumber(production)}
+                            🥚
+                            ${formatNumber(production)}
                             tuxum / daqiqa
                         </div>
 
@@ -438,39 +772,55 @@ function renderFarm(chickens) {
                     </div>
 
                 </div>
+
             `;
 
         }).join("");
 }
 
 
-// ================================
+// =========================================================
 // BUY CHICKEN
-// ================================
+// =========================================================
 
 async function buyChicken(level) {
 
-    const prices = {
-        1: 1000,
-        2: 5000,
-        3: 15000
-    };
+    level = Number(level);
 
-    const price = prices[level];
 
-    if (!price) {
+    if (
+        ![1, 2, 3].includes(level)
+    ) {
+
         showToast(
             "❌ Tovuq darajasi noto‘g‘ri",
             "error"
         );
+
         return;
     }
 
 
+    const price =
+        Number(
+            appConfig?.chickens?.[
+                String(level)
+            ]?.price
+        ) ||
+        {
+            1: 1000,
+            2: 5000,
+            3: 15000
+        }[level];
+
+
     const confirmed =
         confirm(
-            `Lv.${level} tovuqni ${formatNumber(price)} coin ga sotib olasizmi?`
+            `Lv.${level} tovuqni ` +
+            `${formatNumber(price)} coin ` +
+            `ga sotib olasizmi?`
         );
+
 
     if (!confirmed) return;
 
@@ -482,16 +832,19 @@ async function buyChicken(level) {
             "info"
         );
 
+
         const result =
             await apiRequest(
                 "/api/chicken/buy",
                 {
                     method: "POST",
+
                     body: JSON.stringify({
                         level: level
                     })
                 }
             );
+
 
         showToast(
             result.message ||
@@ -499,9 +852,9 @@ async function buyChicken(level) {
             "success"
         );
 
+
         await loadDashboard();
 
-        showPage("farm");
 
     } catch (error) {
 
@@ -513,9 +866,9 @@ async function buyChicken(level) {
 }
 
 
-// ================================
-// EGGS → COIN
-// ================================
+// =========================================================
+// EGGS
+// =========================================================
 
 async function exchangeEggs() {
 
@@ -529,13 +882,16 @@ async function exchangeEggs() {
                 }
             );
 
+
         showToast(
             result.message ||
-            "🥚 Tuxumlar coinga almashtirildi!",
+            "🥚 Tuxumlar almashtirildi!",
             "success"
         );
 
+
         await loadDashboard();
+
 
     } catch (error) {
 
@@ -547,9 +903,9 @@ async function exchangeEggs() {
 }
 
 
-// ================================
+// =========================================================
 // MINING
-// ================================
+// =========================================================
 
 async function loadMining() {
 
@@ -560,30 +916,50 @@ async function loadMining() {
                 "/api/mining"
             );
 
+
         miningRemaining =
-            Number(data.remaining || 0);
+            Number(
+                data.remaining || 0
+            );
+
 
         updateMiningUI();
 
 
         if (miningInterval) {
-            clearInterval(miningInterval);
+
+            clearInterval(
+                miningInterval
+            );
         }
 
 
         miningInterval =
             setInterval(() => {
 
-                if (miningRemaining > 0) {
+                if (
+                    miningRemaining > 0
+                ) {
 
                     miningRemaining--;
+
+                    updateMiningUI();
+
+                } else {
 
                     updateMiningUI();
                 }
 
             }, 1000);
 
+
     } catch (error) {
+
+        console.error(
+            "Mining:",
+            error
+        );
+
 
         const timer =
             document.getElementById(
@@ -591,12 +967,17 @@ async function loadMining() {
             );
 
         if (timer) {
+
             timer.textContent =
                 "Server bilan bog‘lanib bo‘lmadi";
         }
     }
 }
 
+
+// =========================================================
+// MINING UI
+// =========================================================
 
 function updateMiningUI() {
 
@@ -610,18 +991,29 @@ function updateMiningUI() {
             "claimMiningButton"
         );
 
+
     if (!timer || !button) return;
 
 
-    if (miningRemaining <= 0) {
+    const bonus =
+        Number(
+            appConfig?.mining?.bonus ||
+            100
+        );
+
+
+    if (
+        miningRemaining <= 0
+    ) {
 
         timer.textContent =
             "🎉 Bonus tayyor!";
 
+
         button.disabled = false;
 
         button.textContent =
-            "🎁 100 Coin olish";
+            `🎁 ${formatNumber(bonus)} Coin olish`;
 
         return;
     }
@@ -638,29 +1030,34 @@ function updateMiningUI() {
             miningRemaining / 3600
         );
 
+
     const minutes =
         Math.floor(
             (miningRemaining % 3600) / 60
         );
+
 
     const seconds =
         miningRemaining % 60;
 
 
     timer.textContent =
-        `Keyingi bonus: ${
-            String(hours).padStart(2, "0")
-        }:${
-            String(minutes).padStart(2, "0")
-        }:${
-            String(seconds).padStart(2, "0")
-        }`;
+        `Keyingi bonus: ` +
+        `${String(hours).padStart(2, "0")}:` +
+        `${String(minutes).padStart(2, "0")}:` +
+        `${String(seconds).padStart(2, "0")}`;
 }
 
 
+// =========================================================
+// CLAIM MINING
+// =========================================================
+
 async function claimMining() {
 
-    if (miningRemaining > 0) {
+    if (
+        miningRemaining > 0
+    ) {
         return;
     }
 
@@ -675,15 +1072,18 @@ async function claimMining() {
                 }
             );
 
+
         showToast(
             result.message ||
-            "🎉 +100 coin olindi!",
+            "🎉 Mining bonusi olindi!",
             "success"
         );
+
 
         await loadDashboard();
 
         await loadMining();
+
 
     } catch (error) {
 
@@ -695,9 +1095,9 @@ async function claimMining() {
 }
 
 
-// ================================
+// =========================================================
 // DEPOSIT
-// ================================
+// =========================================================
 
 async function makeDeposit() {
 
@@ -708,16 +1108,28 @@ async function makeDeposit() {
             )?.value
         );
 
+
     const proof =
         document.getElementById(
             "depositProof"
         )?.value.trim() || "";
 
 
-    if (!amount || amount < 5000) {
+    const minimum =
+        Number(
+            appConfig?.deposit_min ||
+            5000
+        );
+
+
+    if (
+        !amount ||
+        amount < minimum
+    ) {
 
         showToast(
-            "❌ Minimal depozit 5 000 coin",
+            `❌ Minimal depozit ` +
+            `${formatNumber(minimum)} coin`,
             "error"
         );
 
@@ -727,6 +1139,12 @@ async function makeDeposit() {
 
     try {
 
+        showToast(
+            "⏳ Depozit yuborilmoqda...",
+            "info"
+        );
+
+
         const result =
             await apiRequest(
                 "/api/deposit",
@@ -734,8 +1152,11 @@ async function makeDeposit() {
                     method: "POST",
 
                     body: JSON.stringify({
+
                         amount: amount,
+
                         proof: proof
+
                     })
                 }
             );
@@ -748,13 +1169,26 @@ async function makeDeposit() {
         );
 
 
-        document.getElementById(
-            "depositAmount"
-        ).value = "";
+        const amountInput =
+            document.getElementById(
+                "depositAmount"
+            );
 
-        document.getElementById(
-            "depositProof"
-        ).value = "";
+        const proofInput =
+            document.getElementById(
+                "depositProof"
+            );
+
+
+        if (amountInput) {
+            amountInput.value = "";
+        }
+
+
+        if (proofInput) {
+            proofInput.value = "";
+        }
+
 
     } catch (error) {
 
@@ -766,9 +1200,9 @@ async function makeDeposit() {
 }
 
 
-// ================================
+// =========================================================
 // WITHDRAW
-// ================================
+// =========================================================
 
 async function makeWithdraw() {
 
@@ -779,10 +1213,12 @@ async function makeWithdraw() {
             )?.value
         );
 
+
     const card =
         document.getElementById(
             "withdrawCard"
         )?.value.trim() || "";
+
 
     const name =
         document.getElementById(
@@ -790,10 +1226,21 @@ async function makeWithdraw() {
         )?.value.trim() || "";
 
 
-    if (!amount || amount < 10000) {
+    const minimum =
+        Number(
+            appConfig?.withdraw_min ||
+            10000
+        );
+
+
+    if (
+        !amount ||
+        amount < minimum
+    ) {
 
         showToast(
-            "❌ Minimal chiqarish 10 000 coin",
+            `❌ Minimal chiqarish ` +
+            `${formatNumber(minimum)} coin`,
             "error"
         );
 
@@ -804,7 +1251,7 @@ async function makeWithdraw() {
     if (!card) {
 
         showToast(
-            "❌ Karta raqamini kiriting",
+            "❌ Karta yoki kripto manzilini kiriting",
             "error"
         );
 
@@ -825,6 +1272,12 @@ async function makeWithdraw() {
 
     try {
 
+        showToast(
+            "⏳ Withdraw yuborilmoqda...",
+            "info"
+        );
+
+
         const result =
             await apiRequest(
                 "/api/withdraw",
@@ -832,9 +1285,13 @@ async function makeWithdraw() {
                     method: "POST",
 
                     body: JSON.stringify({
+
                         amount: amount,
+
                         card: card,
+
                         name: name
+
                     })
                 }
             );
@@ -842,25 +1299,42 @@ async function makeWithdraw() {
 
         showToast(
             result.message ||
-            "✅ Pul chiqarish so‘rovi yuborildi!",
+            "✅ Withdraw so‘rovi yuborildi!",
             "success"
         );
 
 
-        document.getElementById(
-            "withdrawAmount"
-        ).value = "";
+        const amountInput =
+            document.getElementById(
+                "withdrawAmount"
+            );
 
-        document.getElementById(
-            "withdrawCard"
-        ).value = "";
+        const cardInput =
+            document.getElementById(
+                "withdrawCard"
+            );
 
-        document.getElementById(
-            "withdrawName"
-        ).value = "";
+        const nameInput =
+            document.getElementById(
+                "withdrawName"
+            );
+
+
+        if (amountInput) {
+            amountInput.value = "";
+        }
+
+        if (cardInput) {
+            cardInput.value = "";
+        }
+
+        if (nameInput) {
+            nameInput.value = "";
+        }
 
 
         await loadDashboard();
+
 
     } catch (error) {
 
@@ -872,14 +1346,15 @@ async function makeWithdraw() {
 }
 
 
-// ================================
+// =========================================================
 // THEME
-// ================================
+// =========================================================
 
 function toggleTheme() {
 
     const html =
         document.documentElement;
+
 
     const dark =
         html.classList.toggle("dark");
@@ -896,6 +1371,7 @@ function toggleTheme() {
             "themeButton"
         );
 
+
     if (button) {
 
         button.textContent =
@@ -903,16 +1379,27 @@ function toggleTheme() {
     }
 
 
-    if (tg && tg.setHeaderColor) {
+    try {
 
-        tg.setHeaderColor(
-            dark
-                ? "#17212b"
-                : "#ffffff"
-        );
-    }
+        if (
+            tg &&
+            tg.setHeaderColor
+        ) {
+
+            tg.setHeaderColor(
+                dark
+                    ? "#17212b"
+                    : "#ffffff"
+            );
+        }
+
+    } catch (e) {}
 }
 
+
+// =========================================================
+// LOAD THEME
+// =========================================================
 
 function loadTheme() {
 
@@ -922,7 +1409,9 @@ function loadTheme() {
         );
 
 
-    if (saved === "dark") {
+    if (
+        saved === "dark"
+    ) {
 
         document.documentElement
             .classList.add("dark");
@@ -933,16 +1422,19 @@ function loadTheme() {
                 "themeButton"
             );
 
+
         if (button) {
-            button.textContent = "☀️";
+
+            button.textContent =
+                "☀️";
         }
     }
 }
 
 
-// ================================
+// =========================================================
 // MODAL
-// ================================
+// =========================================================
 
 function openModal(
     title,
@@ -951,42 +1443,113 @@ function openModal(
 ) {
 
     const modal =
-        document.getElementById("modal");
+        document.getElementById(
+            "modal"
+        );
+
 
     if (!modal) return;
 
 
-    document.getElementById(
-        "modalIcon"
-    ).textContent = icon;
+    const modalIcon =
+        document.getElementById(
+            "modalIcon"
+        );
 
-    document.getElementById(
-        "modalTitle"
-    ).textContent = title;
+    const modalTitle =
+        document.getElementById(
+            "modalTitle"
+        );
 
-    document.getElementById(
-        "modalText"
-    ).textContent = text;
+    const modalText =
+        document.getElementById(
+            "modalText"
+        );
 
 
-    modal.classList.remove("hidden");
+    if (modalIcon) {
+        modalIcon.textContent = icon;
+    }
+
+
+    if (modalTitle) {
+        modalTitle.textContent = title;
+    }
+
+
+    if (modalText) {
+        modalText.textContent = text;
+    }
+
+
+    modal.classList.remove(
+        "hidden"
+    );
 }
 
+
+// =========================================================
+// CLOSE MODAL
+// =========================================================
 
 function closeModal() {
 
     const modal =
-        document.getElementById("modal");
+        document.getElementById(
+            "modal"
+        );
+
 
     if (modal) {
-        modal.classList.add("hidden");
+
+        modal.classList.add(
+            "hidden"
+        );
     }
 }
 
 
-// ================================
+// =========================================================
+// AUTH
+// =========================================================
+
+async function authenticate() {
+
+    try {
+
+        const result =
+            await apiRequest(
+                "/api/auth",
+                {
+                    method: "POST"
+                }
+            );
+
+
+        console.log(
+            "AUTH:",
+            result
+        );
+
+
+        return result;
+
+
+    } catch (error) {
+
+        console.error(
+            "Auth error:",
+            error
+        );
+
+        throw error;
+    }
+}
+
+
+// =========================================================
 // START APP
-// ================================
+// =========================================================
 
 async function startApp() {
 
@@ -1000,45 +1563,97 @@ async function startApp() {
             "loadingScreen"
         );
 
+
     const app =
-        document.getElementById("app");
+        document.getElementById(
+            "app"
+        );
 
 
     try {
 
-        if (tg && tg.initData) {
+        if (
+            !tg ||
+            !tg.initData
+        ) {
 
-            await loadDashboard();
+            if (loadingScreen) {
+                loadingScreen.classList.add(
+                    "hidden"
+                );
+            }
 
-        } else {
+            if (app) {
+                app.classList.remove(
+                    "hidden"
+                );
+            }
 
             showToast(
-                "⚠️ Telegram Mini App ichida oching",
+                "⚠️ Mini App'ni Telegram ichida oching",
                 "warning"
+            );
+
+            return;
+        }
+
+
+        // 1. AUTH
+
+        await authenticate();
+
+
+        // 2. CONFIG
+
+        await loadConfig();
+
+
+        // 3. DASHBOARD
+
+        await loadDashboard();
+
+
+        // 4. UI
+
+        if (loadingScreen) {
+
+            loadingScreen.classList.add(
+                "hidden"
             );
         }
 
 
-        if (loadingScreen) {
-            loadingScreen.classList.add("hidden");
+        if (app) {
+
+            app.classList.remove(
+                "hidden"
+            );
         }
 
-        if (app) {
-            app.classList.remove("hidden");
-        }
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "START APP ERROR:",
+            error
+        );
 
 
         if (loadingScreen) {
-            loadingScreen.classList.add("hidden");
+
+            loadingScreen.classList.add(
+                "hidden"
+            );
         }
 
+
         if (app) {
-            app.classList.remove("hidden");
+
+            app.classList.remove(
+                "hidden"
+            );
         }
+
 
         showToast(
             "❌ " + error.message,
@@ -1048,37 +1663,93 @@ async function startApp() {
 }
 
 
-// ================================
+// =========================================================
 // DOM READY
-// ================================
+// =========================================================
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
         startApp();
+
     }
 );
 
 
-// ================================
+// =========================================================
 // TELEGRAM BACK BUTTON
-// ================================
+// =========================================================
 
-if (tg && tg.BackButton) {
+if (
+    tg &&
+    tg.BackButton
+) {
 
-    tg.BackButton.onClick(() => {
+    tg.BackButton.onClick(
+        () => {
 
-        showPage("dashboard");
+            showPage("dashboard");
 
-        tg.BackButton.hide();
-    });
+            tg.BackButton.hide();
+
+        }
+    );
 }
 
 
-// ================================
+// =========================================================
 // TELEGRAM MAIN BUTTON
-// ================================
+// =========================================================
 
-if (tg && tg.MainButton) {
+if (
+    tg &&
+    tg.MainButton
+) {
+
     tg.MainButton.hide();
 }
+
+
+// =========================================================
+// GLOBAL EXPORT
+// HTML onclick uchun kerak
+// =========================================================
+
+window.showPage =
+    showPage;
+
+window.buyChicken =
+    buyChicken;
+
+window.exchangeEggs =
+    exchangeEggs;
+
+window.loadMining =
+    loadMining;
+
+window.claimMining =
+    claimMining;
+
+window.makeDeposit =
+    makeDeposit;
+
+window.makeWithdraw =
+    makeWithdraw;
+
+window.toggleTheme =
+    toggleTheme;
+
+window.openModal =
+    openModal;
+
+window.closeModal =
+    closeModal;
+
+window.loadDashboard =
+    loadDashboard;
+
+window.loadConfig =
+    loadConfig;
+```
+
