@@ -3,7 +3,6 @@
 // Asosiy JavaScript funksiyalar shu faylda bo'ladi.
 
 const tg = window.Telegram?.WebApp;
-
 const API_URL =
     localStorage.getItem("CHICKEN_API_URL") ||
     "https://chicken-farm-630z.onrender.com";
