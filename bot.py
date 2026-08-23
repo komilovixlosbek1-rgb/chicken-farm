@@ -1,4 +1,3 @@
-```python
 import asyncio
 import logging
 import os
@@ -23,7 +22,10 @@ from aiogram.fsm.state import State, StatesGroup
 # =========================================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+
+ADMIN_ID = int(
+    os.getenv("ADMIN_ID", "0")
+)
 
 MINI_APP_URL = "https://chicken-farm-630z.onrender.com"
 
@@ -55,16 +57,11 @@ logging.basicConfig(
 # BOT
 # =========================================================
 
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(
+    token=BOT_TOKEN
+)
+
 dp = Dispatcher()
-
-
-# =========================================================
-# ADMIN TEKSHIRISH
-# =========================================================
-
-def is_admin(user_id: int) -> bool:
-    return user_id == ADMIN_ID
 
 
 # =========================================================
@@ -73,6 +70,101 @@ def is_admin(user_id: int) -> bool:
 
 async def db():
     return await aiosqlite.connect(DB_NAME)
+
+
+# =========================================================
+# ADMIN TEKSHIRISH
+# =========================================================
+
+def is_admin(user_id: int) -> bool:
+    return int(user_id) == ADMIN_ID
+
+
+# =========================================================
+# DATABASE MIGRATION
+# =========================================================
+
+async def migrate_database():
+
+    dbx = await db()
+
+    # Ethereum wallet / payment turi uchun ustunlar
+    try:
+        await dbx.execute(
+            """
+            ALTER TABLE withdrawals
+            ADD COLUMN method TEXT DEFAULT 'card'
+            """
+        )
+    except Exception:
+        pass
+
+    try:
+        await dbx.execute(
+            """
+            ALTER TABLE withdrawals
+            ADD COLUMN wallet TEXT DEFAULT ''
+            """
+        )
+    except Exception:
+        pass
+
+    try:
+        await dbx.execute(
+            """
+            ALTER TABLE deposits
+            ADD COLUMN method TEXT DEFAULT 'card'
+            """
+        )
+    except Exception:
+        pass
+
+    try:
+        await dbx.execute(
+            """
+            ALTER TABLE deposits
+            ADD COLUMN tx_hash TEXT DEFAULT ''
+            """
+        )
+    except Exception:
+        pass
+
+    # Ethereum wallet setting
+    await dbx.execute(
+        """
+        INSERT OR IGNORE INTO settings(key,value)
+        VALUES('ethereum_wallet','')
+        """
+    )
+
+    # Tovuq narxlari
+    await dbx.execute(
+        """
+        INSERT OR IGNORE INTO settings(key,value)
+        VALUES('chicken_price_1','1000')
+        """
+    )
+
+    await dbx.execute(
+        """
+        INSERT OR IGNORE INTO settings(key,value)
+        VALUES('chicken_price_2','5000')
+        """
+    )
+
+    await dbx.execute(
+        """
+        INSERT OR IGNORE INTO settings(key,value)
+        VALUES('chicken_price_3','15000')
+        """
+    )
+
+    await dbx.commit()
+    await dbx.close()
+
+    logging.info(
+        "✅ Database migration tekshirildi."
+    )
 
 
 # =========================================================
@@ -105,7 +197,7 @@ def admin_keyboard():
             ],
             [
                 InlineKeyboardButton(
-                    text="⛏ Mining",
+                    text="⛏️ Mining",
                     callback_data="admin_mining"
                 ),
                 InlineKeyboardButton(
@@ -152,7 +244,7 @@ def back_keyboard():
 
 
 # =========================================================
-# FSM
+# FSM STATES
 # =========================================================
 
 class AdminStates(StatesGroup):
@@ -161,14 +253,16 @@ class AdminStates(StatesGroup):
     chicken = State()
     price = State()
     egg_rate = State()
+
     mining_bonus = State()
     mining_time = State()
+
     card = State()
     ethereum = State()
 
 
 # =========================================================
-# /START
+# START
 # =========================================================
 
 @dp.message(CommandStart())
@@ -210,23 +304,29 @@ async def start_command(message: Message):
     await dbx.commit()
     await dbx.close()
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🐔 Ferma",
-                    web_app=WebAppInfo(
-                        url=MINI_APP_URL
-                    )
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="🐔 Ferma",
+                web_app=WebAppInfo(
+                    url=MINI_APP_URL
                 )
-            ],
+            )
+        ]
+    ]
+
+    if is_admin(user.id):
+        rows.append(
             [
                 InlineKeyboardButton(
                     text="👑 Admin panel",
                     callback_data="admin_home"
                 )
-            ] if is_admin(user.id) else []
-        ]
+            ]
+        )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=rows
     )
 
     await message.answer(
@@ -240,14 +340,18 @@ async def start_command(message: Message):
 
 
 # =========================================================
-# ADMIN PANEL
+# ADMIN COMMAND
 # =========================================================
 
 @dp.message(Command("admin"))
 async def admin_command(message: Message):
 
     if not is_admin(message.from_user.id):
-        await message.answer("❌ Siz admin emassiz.")
+
+        await message.answer(
+            "❌ Siz admin emassiz."
+        )
+
         return
 
     await message.answer(
@@ -258,14 +362,20 @@ async def admin_command(message: Message):
     )
 
 
+# =========================================================
+# ADMIN HOME
+# =========================================================
+
 @dp.callback_query(F.data == "admin_home")
 async def admin_home(callback: CallbackQuery):
 
     if not is_admin(callback.from_user.id):
+
         await callback.answer(
             "❌ Ruxsat yo‘q",
             show_alert=True
         )
+
         return
 
     await callback.message.edit_text(
@@ -292,26 +402,30 @@ async def admin_balance(callback: CallbackQuery):
         "💰 <b>Balans boshqarish</b>\n\n"
         "Format:\n"
         "<code>ID AMOUNT</code>\n\n"
-        "Musbat = qo‘shish\n"
-        "Manfiy = ayirish\n\n"
-        "Misol:\n"
-        "<code>123456789 5000</code>\n"
+        "Qo‘shish:\n"
+        "<code>123456789 5000</code>\n\n"
+        "Ayirish:\n"
         "<code>123456789 -2000</code>",
         reply_markup=back_keyboard(),
         parse_mode="HTML",
     )
 
     await callback.answer()
+
     await AdminStates.balance.set()
 
 
 @dp.message(AdminStates.balance)
-async def balance_state(message: Message, state: FSMContext):
+async def balance_state(
+    message: Message,
+    state: FSMContext
+):
 
     if not is_admin(message.from_user.id):
         return
 
     try:
+
         user_id, amount = map(
             int,
             message.text.split()
@@ -320,17 +434,24 @@ async def balance_state(message: Message, state: FSMContext):
         dbx = await db()
 
         cursor = await dbx.execute(
-            "SELECT balance FROM users WHERE user_id=?",
+            """
+            SELECT balance
+            FROM users
+            WHERE user_id=?
+            """,
             (user_id,)
         )
 
         row = await cursor.fetchone()
 
         if not row:
+
             await dbx.close()
+
             await message.answer(
                 "❌ Foydalanuvchi topilmadi."
             )
+
             return
 
         new_balance = int(row[0]) + amount
@@ -344,16 +465,20 @@ async def balance_state(message: Message, state: FSMContext):
             SET balance=?
             WHERE user_id=?
             """,
-            (new_balance, user_id)
+            (
+                new_balance,
+                user_id
+            )
         )
 
         await dbx.commit()
         await dbx.close()
 
         await message.answer(
-            f"✅ Balans yangilandi.\n\n"
+            f"✅ <b>Balans yangilandi</b>\n\n"
             f"👤 ID: <code>{user_id}</code>\n"
-            f"💰 Yangi balans: <b>{new_balance:,}</b> coin",
+            f"💰 Yangi balans: "
+            f"<b>{new_balance:,}</b> coin",
             parse_mode="HTML",
             reply_markup=back_keyboard()
         )
@@ -364,7 +489,7 @@ async def balance_state(message: Message, state: FSMContext):
 
         await message.answer(
             "❌ Format noto‘g‘ri.\n"
-            "Masalan: <code>123456789 5000</code>",
+            "Misol: <code>123456789 5000</code>",
             parse_mode="HTML"
         )
 
@@ -383,9 +508,9 @@ async def admin_chicken(callback: CallbackQuery):
         "🐔 <b>Tovuq boshqarish</b>\n\n"
         "Format:\n"
         "<code>ID LEVEL AMOUNT</code>\n\n"
-        "Qo‘shish uchun musbat:\n"
+        "Qo‘shish:\n"
         "<code>123456789 1 5</code>\n\n"
-        "Olib tashlash uchun manfiy:\n"
+        "Olib tashlash:\n"
         "<code>123456789 1 -2</code>\n\n"
         "LEVEL: 1, 2 yoki 3",
         reply_markup=back_keyboard(),
@@ -393,11 +518,15 @@ async def admin_chicken(callback: CallbackQuery):
     )
 
     await callback.answer()
+
     await AdminStates.chicken.set()
 
 
 @dp.message(AdminStates.chicken)
-async def chicken_state(message: Message, state: FSMContext):
+async def chicken_state(
+    message: Message,
+    state: FSMContext
+):
 
     if not is_admin(message.from_user.id):
         return
@@ -410,10 +539,7 @@ async def chicken_state(message: Message, state: FSMContext):
         )
 
         if level not in [1, 2, 3]:
-            await message.answer(
-                "❌ Level faqat 1, 2 yoki 3."
-            )
-            return
+            raise ValueError
 
         dbx = await db()
 
@@ -423,13 +549,22 @@ async def chicken_state(message: Message, state: FSMContext):
             FROM chickens
             WHERE user_id=? AND level=?
             """,
-            (user_id, level)
+            (
+                user_id,
+                level
+            )
         )
 
         row = await cursor.fetchone()
 
-        current = int(row[0]) if row else 0
-        new_count = max(0, current + amount)
+        current = int(
+            row[0]
+        ) if row else 0
+
+        new_count = max(
+            0,
+            current + amount
+        )
 
         await dbx.execute(
             """
@@ -439,16 +574,21 @@ async def chicken_state(message: Message, state: FSMContext):
             ON CONFLICT(user_id, level)
             DO UPDATE SET count=excluded.count
             """,
-            (user_id, level, new_count)
+            (
+                user_id,
+                level,
+                new_count
+            )
         )
 
         await dbx.commit()
         await dbx.close()
 
         await message.answer(
-            f"✅ Tovuq yangilandi!\n\n"
+            f"✅ <b>Tovuq yangilandi!</b>\n\n"
             f"👤 ID: <code>{user_id}</code>\n"
-            f"🐔 Lv.{level}: <b>{new_count} ta</b>",
+            f"🐔 Lv.{level}: "
+            f"<b>{new_count} ta</b>",
             parse_mode="HTML",
             reply_markup=back_keyboard()
         )
@@ -474,24 +614,58 @@ async def admin_prices(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
 
+    dbx = await db()
+
+    values = {}
+
+    for level in [1, 2, 3]:
+
+        cursor = await dbx.execute(
+            """
+            SELECT value
+            FROM settings
+            WHERE key=?
+            """,
+            (f"chicken_price_{level}",)
+        )
+
+        row = await cursor.fetchone()
+
+        values[level] = (
+            int(row[0])
+            if row
+            else {
+                1: 1000,
+                2: 5000,
+                3: 15000
+            }[level]
+        )
+
+    await dbx.close()
+
     await callback.message.edit_text(
-        "💵 <b>Tovuq narxini o‘zgartirish</b>\n\n"
-        "Format:\n"
+        "💵 <b>Tovuq narxlari</b>\n\n"
+        f"🐔 Lv.1: <b>{values[1]:,}</b> coin\n"
+        f"🐔 Lv.2: <b>{values[2]:,}</b> coin\n"
+        f"🐔 Lv.3: <b>{values[3]:,}</b> coin\n\n"
+        "O‘zgartirish uchun:\n"
         "<code>LEVEL PRICE</code>\n\n"
         "Misol:\n"
-        "<code>1 1000</code>\n"
-        "<code>2 5000</code>\n"
-        "<code>3 15000</code>",
+        "<code>1 2500</code>",
         reply_markup=back_keyboard(),
-        parse_mode="HTML",
+        parse_mode="HTML"
     )
 
     await callback.answer()
+
     await AdminStates.price.set()
 
 
 @dp.message(AdminStates.price)
-async def price_state(message: Message, state: FSMContext):
+async def price_state(
+    message: Message,
+    state: FSMContext
+):
 
     if not is_admin(message.from_user.id):
         return
@@ -503,7 +677,10 @@ async def price_state(message: Message, state: FSMContext):
             message.text.split()
         )
 
-        if level not in [1, 2, 3] or price <= 0:
+        if level not in [1, 2, 3]:
+            raise ValueError
+
+        if price <= 0:
             raise ValueError
 
         dbx = await db()
@@ -536,8 +713,8 @@ async def price_state(message: Message, state: FSMContext):
     except Exception:
 
         await message.answer(
-            "❌ Format noto‘g‘ri. Masalan: "
-            "<code>1 2500</code>",
+            "❌ Format noto‘g‘ri.\n"
+            "Misol: <code>1 2500</code>",
             parse_mode="HTML"
         )
 
@@ -547,26 +724,50 @@ async def price_state(message: Message, state: FSMContext):
 # =========================================================
 
 @dp.callback_query(F.data == "admin_egg_rate")
-async def admin_egg_rate(callback: CallbackQuery):
+async def admin_egg_rate(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
 
+    dbx = await db()
+
+    cursor = await dbx.execute(
+        """
+        SELECT value
+        FROM settings
+        WHERE key='egg_exchange_rate'
+        """
+    )
+
+    row = await cursor.fetchone()
+
+    rate = int(
+        row[0]
+    ) if row else 10
+
+    await dbx.close()
+
     await callback.message.edit_text(
         "🥚 <b>Tuxum → Coin kursi</b>\n\n"
-        "Masalan:\n"
-        "<code>10</code>\n\n"
-        "Bu 10 ta tuxum = 1 coin degani.",
+        f"Hozirgi kurs: "
+        f"<b>{rate} tuxum = 1 coin</b>\n\n"
+        "Yangi kursni yuboring:",
         reply_markup=back_keyboard(),
-        parse_mode="HTML",
+        parse_mode="HTML"
     )
 
     await callback.answer()
+
     await AdminStates.egg_rate.set()
 
 
 @dp.message(AdminStates.egg_rate)
-async def egg_rate_state(message: Message, state: FSMContext):
+async def egg_rate_state(
+    message: Message,
+    state: FSMContext
+):
 
     if not is_admin(message.from_user.id):
         return
@@ -605,7 +806,7 @@ async def egg_rate_state(message: Message, state: FSMContext):
     except Exception:
 
         await message.answer(
-            "❌ Faqat son kiriting."
+            "❌ Faqat musbat son kiriting."
         )
 
 
@@ -614,7 +815,9 @@ async def egg_rate_state(message: Message, state: FSMContext):
 # =========================================================
 
 @dp.callback_query(F.data == "admin_mining")
-async def admin_mining(callback: CallbackQuery):
+async def admin_mining(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -629,7 +832,7 @@ async def admin_mining(callback: CallbackQuery):
             ],
             [
                 InlineKeyboardButton(
-                    text="⏱ Vaqt",
+                    text="⏱️ Vaqt",
                     callback_data="mining_time"
                 )
             ],
@@ -652,19 +855,23 @@ async def admin_mining(callback: CallbackQuery):
 
 
 @dp.callback_query(F.data == "mining_bonus")
-async def mining_bonus(callback: CallbackQuery):
+async def mining_bonus(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
 
     await callback.message.edit_text(
-        "💰 Mining bonusini kiriting.\n\n"
-        "Masalan: <code>100</code>",
+        "💰 Mining bonusini yuboring.\n\n"
+        "Masalan:\n"
+        "<code>100</code>",
         reply_markup=back_keyboard(),
         parse_mode="HTML"
     )
 
     await callback.answer()
+
     await AdminStates.mining_bonus.set()
 
 
@@ -700,7 +907,8 @@ async def mining_bonus_state(
         await dbx.close()
 
         await message.answer(
-            f"✅ Mining bonusi: <b>{bonus} coin</b>",
+            f"✅ Mining bonusi: "
+            f"<b>{bonus} coin</b>",
             parse_mode="HTML",
             reply_markup=back_keyboard()
         )
@@ -715,20 +923,24 @@ async def mining_bonus_state(
 
 
 @dp.callback_query(F.data == "mining_time")
-async def mining_time(callback: CallbackQuery):
+async def mining_time(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
 
     await callback.message.edit_text(
-        "⏱ Mining vaqtini sekundda kiriting.\n\n"
+        "⏱️ Mining vaqtini sekundda yuboring.\n\n"
+        "30 daqiqa = <code>1800</code>\n"
         "1 soat = <code>3600</code>\n"
-        "30 daqiqa = <code>1800</code>",
+        "2 soat = <code>7200</code>",
         reply_markup=back_keyboard(),
         parse_mode="HTML"
     )
 
     await callback.answer()
+
     await AdminStates.mining_time.set()
 
 
@@ -780,14 +992,52 @@ async def mining_time_state(
 
 
 # =========================================================
-# REKVIZITLAR
+# TO‘LOV REKVIZITLARI
 # =========================================================
 
 @dp.callback_query(F.data == "admin_payment")
-async def admin_payment(callback: CallbackQuery):
+async def admin_payment(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
+
+    dbx = await db()
+
+    cursor = await dbx.execute(
+        """
+        SELECT value
+        FROM settings
+        WHERE key='card_number'
+        """
+    )
+
+    card_row = await cursor.fetchone()
+
+    cursor = await dbx.execute(
+        """
+        SELECT value
+        FROM settings
+        WHERE key='ethereum_wallet'
+        """
+    )
+
+    eth_row = await cursor.fetchone()
+
+    await dbx.close()
+
+    card = (
+        card_row[0]
+        if card_row
+        else "Belgilanmagan"
+    )
+
+    eth = (
+        eth_row[0]
+        if eth_row and eth_row[0]
+        else "Belgilanmagan"
+    )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -813,9 +1063,11 @@ async def admin_payment(callback: CallbackQuery):
     )
 
     await callback.message.edit_text(
-        "💳 <b>To‘lov rekvizitlari</b>\n\n"
-        "Depozit uchun foydalanuvchiga "
-        "ko‘rsatiladigan rekvizitlarni sozlang.",
+        "💳 <b>TO‘LOV REKVIZITLARI</b>\n\n"
+        f"💳 Karta:\n"
+        f"<code>{card}</code>\n\n"
+        f"🔷 Ethereum:\n"
+        f"<code>{eth}</code>",
         reply_markup=keyboard,
         parse_mode="HTML"
     )
@@ -823,8 +1075,14 @@ async def admin_payment(callback: CallbackQuery):
     await callback.answer()
 
 
+# =========================================================
+# KARTA
+# =========================================================
+
 @dp.callback_query(F.data == "set_card")
-async def set_card(callback: CallbackQuery):
+async def set_card(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -835,11 +1093,15 @@ async def set_card(callback: CallbackQuery):
     )
 
     await callback.answer()
+
     await AdminStates.card.set()
 
 
 @dp.message(AdminStates.card)
-async def card_state(message: Message, state: FSMContext):
+async def card_state(
+    message: Message,
+    state: FSMContext
+):
 
     if not is_admin(message.from_user.id):
         return
@@ -847,9 +1109,11 @@ async def card_state(message: Message, state: FSMContext):
     card = message.text.strip()
 
     if len(card) < 8:
+
         await message.answer(
             "❌ Karta raqami juda qisqa."
         )
+
         return
 
     dbx = await db()
@@ -875,18 +1139,28 @@ async def card_state(message: Message, state: FSMContext):
     await state.clear()
 
 
+# =========================================================
+# ETHEREUM
+# =========================================================
+
 @dp.callback_query(F.data == "set_eth")
-async def set_eth(callback: CallbackQuery):
+async def set_eth(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
 
     await callback.message.edit_text(
-        "🔷 Ethereum wallet manzilini yuboring:",
-        reply_markup=back_keyboard()
+        "🔷 Ethereum wallet manzilini yuboring.\n\n"
+        "Masalan:\n"
+        "<code>0x1234567890123456789012345678901234567890</code>",
+        reply_markup=back_keyboard(),
+        parse_mode="HTML"
     )
 
     await callback.answer()
+
     await AdminStates.ethereum.set()
 
 
@@ -901,11 +1175,17 @@ async def ethereum_state(
 
     wallet = message.text.strip()
 
-    if not wallet.startswith("0x") or len(wallet) != 42:
+    if (
+        not wallet.startswith("0x")
+        or len(wallet) != 42
+    ):
+
         await message.answer(
-            "❌ Ethereum wallet manzili noto‘g‘ri.\n"
-            "0x bilan boshlanishi va 42 belgidan iborat bo‘lishi kerak."
+            "❌ Ethereum wallet manzili noto‘g‘ri.\n\n"
+            "Wallet 0x bilan boshlanishi va "
+            "42 belgidan iborat bo‘lishi kerak."
         )
+
         return
 
     dbx = await db()
@@ -924,7 +1204,9 @@ async def ethereum_state(
     await dbx.close()
 
     await message.answer(
-        "✅ Ethereum wallet saqlandi.",
+        "✅ <b>Ethereum wallet saqlandi!</b>\n\n"
+        f"<code>{wallet}</code>",
+        parse_mode="HTML",
         reply_markup=back_keyboard()
     )
 
@@ -936,7 +1218,9 @@ async def ethereum_state(
 # =========================================================
 
 @dp.callback_query(F.data == "admin_deposits")
-async def admin_deposits(callback: CallbackQuery):
+async def admin_deposits(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -945,7 +1229,12 @@ async def admin_deposits(callback: CallbackQuery):
 
     cursor = await dbx.execute(
         """
-        SELECT id, user_id, amount, proof, created_at
+        SELECT
+            id,
+            user_id,
+            amount,
+            proof,
+            created_at
         FROM deposits
         WHERE status='pending'
         ORDER BY id DESC
@@ -965,13 +1254,22 @@ async def admin_deposits(callback: CallbackQuery):
         )
 
         await callback.answer()
+
         return
+
+    text = (
+        "📥 <b>PENDING DEPOZITLAR</b>\n\n"
+    )
 
     buttons = []
 
-    text = "📥 <b>Pending depozitlar</b>\n\n"
-
-    for deposit_id, user_id, amount, proof, created_at in rows:
+    for (
+        deposit_id,
+        user_id,
+        amount,
+        proof,
+        created_at
+    ) in rows:
 
         text += (
             f"🆔 #{deposit_id}\n"
@@ -1017,8 +1315,12 @@ async def admin_deposits(callback: CallbackQuery):
 # DEPOZIT TASDIQLASH
 # =========================================================
 
-@dp.callback_query(F.data.startswith("dep_ok:"))
-async def deposit_approve(callback: CallbackQuery):
+@dp.callback_query(
+    F.data.startswith("dep_ok:")
+)
+async def deposit_approve(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -1045,9 +1347,10 @@ async def deposit_approve(callback: CallbackQuery):
         await dbx.close()
 
         await callback.answer(
-            "❌ Depozit topilmadi.",
+            "❌ Depozit topilmadi yoki allaqachon ishlangan.",
             show_alert=True
         )
+
         return
 
     user_id, amount = row
@@ -1060,7 +1363,10 @@ async def deposit_approve(callback: CallbackQuery):
             has_deposited = 1
         WHERE user_id=?
         """,
-        (amount, user_id)
+        (
+            amount,
+            user_id
+        )
     )
 
     await dbx.execute(
@@ -1075,23 +1381,48 @@ async def deposit_approve(callback: CallbackQuery):
     await dbx.commit()
     await dbx.close()
 
+    try:
+
+        await bot.send_message(
+            user_id,
+            "✅ <b>Depozitingiz tasdiqlandi!</b>\n\n"
+            f"💰 Balansingizga "
+            f"<b>+{amount:,} coin</b> qo‘shildi.\n\n"
+            "⛏️ Mining ham ochildi.",
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+
+        logging.warning(
+            "Userga depozit xabari yuborilmadi: %s",
+            e
+        )
+
     await callback.message.edit_text(
         f"✅ <b>Depozit tasdiqlandi</b>\n\n"
         f"🆔 #{deposit_id}\n"
         f"👤 {user_id}\n"
         f"💰 +{amount:,} coin",
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=back_keyboard()
     )
 
-    await callback.answer("Tasdiqlandi!")
+    await callback.answer(
+        "Tasdiqlandi!"
+    )
 
 
 # =========================================================
 # DEPOZIT RAD ETISH
 # =========================================================
 
-@dp.callback_query(F.data.startswith("dep_no:"))
-async def deposit_reject(callback: CallbackQuery):
+@dp.callback_query(
+    F.data.startswith("dep_no:")
+)
+async def deposit_reject(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -1101,6 +1432,30 @@ async def deposit_reject(callback: CallbackQuery):
     )
 
     dbx = await db()
+
+    cursor = await dbx.execute(
+        """
+        SELECT user_id
+        FROM deposits
+        WHERE id=? AND status='pending'
+        """,
+        (deposit_id,)
+    )
+
+    row = await cursor.fetchone()
+
+    if not row:
+
+        await dbx.close()
+
+        await callback.answer(
+            "Depozit topilmadi.",
+            show_alert=True
+        )
+
+        return
+
+    user_id = row[0]
 
     await dbx.execute(
         """
@@ -1114,13 +1469,25 @@ async def deposit_reject(callback: CallbackQuery):
     await dbx.commit()
     await dbx.close()
 
-    await callback.answer(
-        "❌ Depozit rad etildi."
-    )
+    try:
+
+        await bot.send_message(
+            user_id,
+            "❌ <b>Depozitingiz rad etildi.</b>\n\n"
+            "Proof yoki to‘lov ma’lumotlarini tekshiring.",
+            parse_mode="HTML"
+        )
+
+    except Exception:
+        pass
 
     await callback.message.edit_text(
         f"❌ Depozit #{deposit_id} rad etildi.",
         reply_markup=back_keyboard()
+    )
+
+    await callback.answer(
+        "Rad etildi."
     )
 
 
@@ -1128,25 +1495,64 @@ async def deposit_reject(callback: CallbackQuery):
 # WITHDRAWLAR
 # =========================================================
 
-@dp.callback_query(F.data == "admin_withdraws")
-async def admin_withdraws(callback: CallbackQuery):
+@dp.callback_query(
+    F.data == "admin_withdraws"
+)
+async def admin_withdraws(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
 
     dbx = await db()
 
-    cursor = await dbx.execute(
-        """
-        SELECT id, user_id, amount, card, name, created_at
-        FROM withdrawals
-        WHERE status='pending'
-        ORDER BY id DESC
-        LIMIT 20
-        """
-    )
+    # method va wallet bo‘lgan yangi DB
+    try:
 
-    rows = await cursor.fetchall()
+        cursor = await dbx.execute(
+            """
+            SELECT
+                id,
+                user_id,
+                amount,
+                card,
+                name,
+                method,
+                wallet,
+                created_at
+            FROM withdrawals
+            WHERE status='pending'
+            ORDER BY id DESC
+            LIMIT 20
+            """
+        )
+
+        rows = await cursor.fetchall()
+
+        new_format = True
+
+    except Exception:
+
+        cursor = await dbx.execute(
+            """
+            SELECT
+                id,
+                user_id,
+                amount,
+                card,
+                name,
+                created_at
+            FROM withdrawals
+            WHERE status='pending'
+            ORDER BY id DESC
+            LIMIT 20
+            """
+        )
+
+        rows = await cursor.fetchall()
+
+        new_format = False
 
     await dbx.close()
 
@@ -1158,18 +1564,78 @@ async def admin_withdraws(callback: CallbackQuery):
         )
 
         await callback.answer()
+
         return
 
-    text = "📤 <b>Pending withdrawlar</b>\n\n"
+    text = (
+        "📤 <b>PENDING WITHDRAWLAR</b>\n\n"
+    )
+
     buttons = []
 
-    for wid, user_id, amount, card, name, created_at in rows:
+    for row in rows:
+
+        if new_format:
+
+            (
+                wid,
+                user_id,
+                amount,
+                card,
+                name,
+                method,
+                wallet,
+                created_at
+            ) = row
+
+            method = method or "card"
+            wallet = wallet or ""
+
+        else:
+
+            (
+                wid,
+                user_id,
+                amount,
+                card,
+                name,
+                created_at
+            ) = row
+
+            method = (
+                "ethereum"
+                if str(card).startswith("0x")
+                else "card"
+            )
+
+            wallet = (
+                card
+                if method == "ethereum"
+                else ""
+            )
+
+        if method.lower() in [
+            "eth",
+            "ethereum"
+        ]:
+
+            payment_info = (
+                f"🔷 ETH Wallet:\n"
+                f"<code>{wallet or card}</code>\n"
+            )
+
+        else:
+
+            payment_info = (
+                f"💳 Karta:\n"
+                f"<code>{card}</code>\n"
+            )
 
         text += (
             f"🆔 #{wid}\n"
-            f"👤 <code>{user_id}</code>\n"
+            f"👤 ID: <code>{user_id}</code>\n"
             f"💰 {amount:,} coin\n"
-            f"💳 {card}\n"
+            f"{payment_info}"
             f"👤 {name}\n\n"
         )
 
@@ -1210,46 +1676,12 @@ async def admin_withdraws(callback: CallbackQuery):
 # WITHDRAW TASDIQLASH
 # =========================================================
 
-@dp.callback_query(F.data.startswith("with_ok:"))
-async def withdraw_approve(callback: CallbackQuery):
-
-    if not is_admin(callback.from_user.id):
-        return
-
-    wid = int(
-        callback.data.split(":")[1]
-    )
-
-    dbx = await db()
-
-    await dbx.execute(
-        """
-        UPDATE withdrawals
-        SET status='approved'
-        WHERE id=? AND status='pending'
-        """,
-        (wid,)
-    )
-
-    await dbx.commit()
-    await dbx.close()
-
-    await callback.message.edit_text(
-        f"✅ Withdraw #{wid} tasdiqlandi.\n\n"
-        f"💸 Foydalanuvchiga to‘lovni "
-        f"belgilangan rekvizit bo‘yicha yuboring.",
-        reply_markup=back_keyboard()
-    )
-
-    await callback.answer("Tasdiqlandi!")
-
-
-# =========================================================
-# WITHDRAW RAD ETISH
-# =========================================================
-
-@dp.callback_query(F.data.startswith("with_no:"))
-async def withdraw_reject(callback: CallbackQuery):
+@dp.callback_query(
+    F.data.startswith("with_ok:")
+)
+async def withdraw_approve(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -1262,7 +1694,9 @@ async def withdraw_reject(callback: CallbackQuery):
 
     cursor = await dbx.execute(
         """
-        SELECT user_id, amount
+        SELECT
+            user_id,
+            amount
         FROM withdrawals
         WHERE id=? AND status='pending'
         """,
@@ -1279,25 +1713,16 @@ async def withdraw_reject(callback: CallbackQuery):
             "Withdraw topilmadi.",
             show_alert=True
         )
+
         return
 
     user_id, amount = row
 
-    # Pul foydalanuvchiga qaytariladi
-    await dbx.execute(
-        """
-        UPDATE users
-        SET balance=balance+?
-        WHERE user_id=?
-        """,
-        (amount, user_id)
-    )
-
     await dbx.execute(
         """
         UPDATE withdrawals
-        SET status='rejected'
-        WHERE id=?
+        SET status='approved'
+        WHERE id=? AND status='pending'
         """,
         (wid,)
     )
@@ -1305,21 +1730,138 @@ async def withdraw_reject(callback: CallbackQuery):
     await dbx.commit()
     await dbx.close()
 
+    try:
+
+        await bot.send_message(
+            user_id,
+            "✅ <b>Withdraw so‘rovingiz tasdiqlandi!</b>\n\n"
+            f"💰 Miqdor: <b>{amount:,} coin</b>\n\n"
+            "To‘lov admin tomonidan yuboriladi.",
+            parse_mode="HTML"
+        )
+
+    except Exception:
+        pass
+
     await callback.message.edit_text(
-        f"❌ Withdraw #{wid} rad etildi.\n\n"
-        f"💰 {amount:,} coin foydalanuvchi balansiga qaytarildi.",
-        reply_markup=back_keyboard()
+        f"✅ <b>Withdraw #{wid} tasdiqlandi.</b>\n\n"
+        f"💰 {amount:,} coin\n\n"
+        "💸 To‘lovni foydalanuvchi ko‘rsatgan "
+        "rekvizitga yuboring.",
+        reply_markup=back_keyboard(),
+        parse_mode="HTML"
     )
 
-    await callback.answer("Rad etildi!")
+    await callback.answer(
+        "Tasdiqlandi!"
+    )
+
+
+# =========================================================
+# WITHDRAW RAD ETISH
+# =========================================================
+
+@dp.callback_query(
+    F.data.startswith("with_no:")
+)
+async def withdraw_reject(
+    callback: CallbackQuery
+):
+
+    if not is_admin(callback.from_user.id):
+        return
+
+    wid = int(
+        callback.data.split(":")[1]
+    )
+
+    dbx = await db()
+
+    cursor = await dbx.execute(
+        """
+        SELECT
+            user_id,
+            amount
+        FROM withdrawals
+        WHERE id=? AND status='pending'
+        """,
+        (wid,)
+    )
+
+    row = await cursor.fetchone()
+
+    if not row:
+
+        await dbx.close()
+
+        await callback.answer(
+            "Withdraw topilmadi.",
+            show_alert=True
+        )
+
+        return
+
+    user_id, amount = row
+
+    # Pulni qaytarish
+    await dbx.execute(
+        """
+        UPDATE users
+        SET balance = balance + ?
+        WHERE user_id=?
+        """,
+        (
+            amount,
+            user_id
+        )
+    )
+
+    await dbx.execute(
+        """
+        UPDATE withdrawals
+        SET status='rejected'
+        WHERE id=? AND status='pending'
+        """,
+        (wid,)
+    )
+
+    await dbx.commit()
+    await dbx.close()
+
+    try:
+
+        await bot.send_message(
+            user_id,
+            "❌ <b>Withdraw so‘rovingiz rad etildi.</b>\n\n"
+            f"💰 {amount:,} coin balansingizga qaytarildi.",
+            parse_mode="HTML"
+        )
+
+    except Exception:
+        pass
+
+    await callback.message.edit_text(
+        f"❌ <b>Withdraw #{wid} rad etildi.</b>\n\n"
+        f"💰 {amount:,} coin balansga qaytarildi.",
+        reply_markup=back_keyboard(),
+        parse_mode="HTML"
+    )
+
+    await callback.answer(
+        "Rad etildi."
+    )
 
 
 # =========================================================
 # FOYDALANUVCHILAR
 # =========================================================
 
-@dp.callback_query(F.data == "admin_users")
-async def admin_users(callback: CallbackQuery):
+@dp.callback_query(
+    F.data == "admin_users"
+)
+async def admin_users(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -1328,7 +1870,11 @@ async def admin_users(callback: CallbackQuery):
 
     cursor = await dbx.execute(
         """
-        SELECT user_id, username, first_name, balance
+        SELECT
+            user_id,
+            username,
+            first_name,
+            balance
         FROM users
         ORDER BY created_at DESC
         LIMIT 20
@@ -1339,11 +1885,26 @@ async def admin_users(callback: CallbackQuery):
 
     await dbx.close()
 
-    text = "👥 <b>Oxirgi foydalanuvchilar</b>\n\n"
+    text = (
+        "👥 <b>OXIRGI FOYDALANUVCHILAR</b>\n\n"
+    )
 
-    for user_id, username, first_name, balance in rows:
+    if not rows:
 
-        name = first_name or username or "Noma'lum"
+        text += "Foydalanuvchilar yo‘q."
+
+    for (
+        user_id,
+        username,
+        first_name,
+        balance
+    ) in rows:
+
+        name = (
+            first_name
+            or username
+            or "Noma'lum"
+        )
 
         text += (
             f"👤 {name}\n"
@@ -1364,8 +1925,12 @@ async def admin_users(callback: CallbackQuery):
 # STATISTIKA
 # =========================================================
 
-@dp.callback_query(F.data == "admin_stats")
-async def admin_stats(callback: CallbackQuery):
+@dp.callback_query(
+    F.data == "admin_stats"
+)
+async def admin_stats(
+    callback: CallbackQuery
+):
 
     if not is_admin(callback.from_user.id):
         return
@@ -1376,25 +1941,51 @@ async def admin_stats(callback: CallbackQuery):
         "SELECT COUNT(*) FROM users"
     )
 
-    users = (await cursor.fetchone())[0]
+    users = (
+        await cursor.fetchone()
+    )[0]
 
     cursor = await dbx.execute(
-        "SELECT COALESCE(SUM(balance),0) FROM users"
+        """
+        SELECT COALESCE(
+            SUM(balance),
+            0
+        )
+        FROM users
+        """
     )
 
-    balance = (await cursor.fetchone())[0]
+    balance = (
+        await cursor.fetchone()
+    )[0]
 
     cursor = await dbx.execute(
-        "SELECT COALESCE(SUM(eggs),0) FROM users"
+        """
+        SELECT COALESCE(
+            SUM(eggs),
+            0
+        )
+        FROM users
+        """
     )
 
-    eggs = (await cursor.fetchone())[0]
+    eggs = (
+        await cursor.fetchone()
+    )[0]
 
     cursor = await dbx.execute(
-        "SELECT COALESCE(SUM(count),0) FROM chickens"
+        """
+        SELECT COALESCE(
+            SUM(count),
+            0
+        )
+        FROM chickens
+        """
     )
 
-    chickens = (await cursor.fetchone())[0]
+    chickens = (
+        await cursor.fetchone()
+    )[0]
 
     cursor = await dbx.execute(
         """
@@ -1404,7 +1995,9 @@ async def admin_stats(callback: CallbackQuery):
         """
     )
 
-    deposits = (await cursor.fetchone())[0]
+    deposits = (
+        await cursor.fetchone()
+    )[0]
 
     cursor = await dbx.execute(
         """
@@ -1414,18 +2007,26 @@ async def admin_stats(callback: CallbackQuery):
         """
     )
 
-    withdrawals = (await cursor.fetchone())[0]
+    withdrawals = (
+        await cursor.fetchone()
+    )[0]
 
     await dbx.close()
 
     await callback.message.edit_text(
         "📊 <b>CHICKEN FARM STATISTIKA</b>\n\n"
-        f"👥 Foydalanuvchilar: <b>{users}</b>\n"
-        f"💰 Umumiy coin: <b>{balance:,}</b>\n"
-        f"🥚 Umumiy tuxum: <b>{eggs:,}</b>\n"
-        f"🐔 Umumiy tovuq: <b>{chickens:,}</b>\n"
-        f"📥 Pending depozit: <b>{deposits}</b>\n"
-        f"📤 Pending withdraw: <b>{withdrawals}</b>",
+        f"👥 Foydalanuvchilar: "
+        f"<b>{users}</b>\n"
+        f"💰 Umumiy coin: "
+        f"<b>{balance:,}</b>\n"
+        f"🥚 Umumiy tuxum: "
+        f"<b>{eggs:,}</b>\n"
+        f"🐔 Umumiy tovuq: "
+        f"<b>{chickens:,}</b>\n"
+        f"📥 Pending depozit: "
+        f"<b>{deposits}</b>\n"
+        f"📤 Pending withdraw: "
+        f"<b>{withdrawals}</b>",
         reply_markup=back_keyboard(),
         parse_mode="HTML"
     )
@@ -1434,28 +2035,34 @@ async def admin_stats(callback: CallbackQuery):
 
 
 # =========================================================
-# NOMA'LUM ADMIN CALLBACKLARINI HIMOYA
+# UNKNOWN CALLBACK
 # =========================================================
 
 @dp.callback_query()
-async def unknown_callback(callback: CallbackQuery):
+async def unknown_callback(
+    callback: CallbackQuery
+):
 
-    if callback.data and callback.data.startswith("admin_"):
+    if (
+        callback.data
+        and callback.data.startswith("admin_")
+        and not is_admin(
+            callback.from_user.id
+        )
+    ):
 
-        if not is_admin(callback.from_user.id):
+        await callback.answer(
+            "❌ Sizda admin huquqi yo‘q.",
+            show_alert=True
+        )
 
-            await callback.answer(
-                "❌ Sizda admin huquqi yo‘q.",
-                show_alert=True
-            )
-
-            return
+        return
 
     await callback.answer()
 
 
 # =========================================================
-# BOTNI ISHGA TUSHIRISH
+# STARTUP
 # =========================================================
 
 async def main():
@@ -1464,26 +2071,33 @@ async def main():
         "🐔 Chicken Farm bot ishga tushmoqda..."
     )
 
+    # Database migration
+    await migrate_database()
+
+    # Eski webhookni o‘chirish
     await bot.delete_webhook(
         drop_pending_updates=True
+    )
+
+    logging.info(
+        "✅ Bot pollingni boshladi."
     )
 
     await dp.start_polling(bot)
 
 
 # =========================================================
-# START
+# RUN
 # =========================================================
 
 if __name__ == "__main__":
 
     try:
+
         asyncio.run(main())
 
     except KeyboardInterrupt:
 
         logging.info(
-            "Bot to‘xtatildi."
+            "🛑 Bot to‘xtatildi."
         )
-```
-
