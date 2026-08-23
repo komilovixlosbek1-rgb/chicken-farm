@@ -31,13 +31,14 @@
         };
     </script>
 
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <!-- =====================================================
-     LOADING
+     LOADING SCREEN
 ===================================================== -->
 
 <div id="loadingScreen" class="loading-screen">
@@ -55,14 +56,17 @@
     </div>
 
     <div class="loading-bar">
-        <div id="loadingProgress"></div>
+        <div
+            id="loadingProgress"
+            style="width: 0%"
+        ></div>
     </div>
 
 </div>
 
 
 <!-- =====================================================
-     APP
+     MAIN APP
 ===================================================== -->
 
 <div id="app" class="app hidden">
@@ -104,6 +108,7 @@
         <button
             id="themeButton"
             class="icon-button"
+            type="button"
             onclick="toggleTheme()"
         >
             🌙
@@ -112,12 +117,16 @@
     </header>
 
 
-
     <!-- =================================================
          DASHBOARD
     ================================================== -->
 
-    <main id="page-dashboard" class="page active">
+    <main
+        id="page-dashboard"
+        class="page active"
+    >
+
+        <!-- Welcome -->
 
         <div class="welcome-card">
 
@@ -143,7 +152,7 @@
         </div>
 
 
-        <!-- BALANCE -->
+        <!-- Balance -->
 
         <div class="balance-card">
 
@@ -173,7 +182,7 @@
         </div>
 
 
-        <!-- STATS -->
+        <!-- Stats -->
 
         <div class="stats-grid">
 
@@ -239,7 +248,7 @@
         </div>
 
 
-        <!-- QUICK ACTIONS -->
+        <!-- Quick Actions -->
 
         <div class="section-title">
             Tezkor amallar
@@ -250,6 +259,7 @@
 
             <button
                 class="quick-button"
+                type="button"
                 onclick="showPage('farm')"
             >
 
@@ -266,6 +276,7 @@
 
             <button
                 class="quick-button"
+                type="button"
                 onclick="showPage('shop')"
             >
 
@@ -282,6 +293,7 @@
 
             <button
                 class="quick-button"
+                type="button"
                 onclick="showPage('eggs')"
             >
 
@@ -298,6 +310,7 @@
 
             <button
                 class="quick-button"
+                type="button"
                 onclick="showPage('mining')"
             >
 
@@ -314,7 +327,7 @@
         </div>
 
 
-        <!-- MINING PREVIEW -->
+        <!-- Mining Preview -->
 
         <div class="mini-mining-card">
 
@@ -344,6 +357,7 @@
 
             <button
                 class="small-action"
+                type="button"
                 onclick="showPage('mining')"
             >
                 Ochish
@@ -354,17 +368,20 @@
     </main>
 
 
-
     <!-- =================================================
          FARM
     ================================================== -->
 
-    <main id="page-farm" class="page">
+    <main
+        id="page-farm"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -407,6 +424,7 @@
 
                 <button
                     class="primary-button"
+                    type="button"
                     onclick="showPage('shop')"
                 >
                     🛒 Tovuq sotib olish
@@ -419,17 +437,20 @@
     </main>
 
 
-
     <!-- =================================================
          SHOP
     ================================================== -->
 
-    <main id="page-shop" class="page">
+    <main
+        id="page-shop"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -453,7 +474,7 @@
         <div class="shop-list">
 
 
-            <!-- LV1 -->
+            <!-- LV 1 -->
 
             <div class="chicken-card">
 
@@ -479,6 +500,7 @@
 
                 <button
                     class="buy-button"
+                    type="button"
                     onclick="buyChicken(1)"
                 >
                     Sotib olish
@@ -487,7 +509,7 @@
             </div>
 
 
-            <!-- LV2 -->
+            <!-- LV 2 -->
 
             <div class="chicken-card">
 
@@ -513,6 +535,7 @@
 
                 <button
                     class="buy-button"
+                    type="button"
                     onclick="buyChicken(2)"
                 >
                     Sotib olish
@@ -521,7 +544,7 @@
             </div>
 
 
-            <!-- LV3 -->
+            <!-- LV 3 -->
 
             <div class="chicken-card">
 
@@ -547,6 +570,7 @@
 
                 <button
                     class="buy-button"
+                    type="button"
                     onclick="buyChicken(3)"
                 >
                     Sotib olish
@@ -559,17 +583,20 @@
     </main>
 
 
-
     <!-- =================================================
          EGGS
     ================================================== -->
 
-    <main id="page-eggs" class="page">
+    <main
+        id="page-eggs"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -597,16 +624,21 @@
             </div>
 
             <div class="egg-big-number">
+
                 <span id="eggStorage">
                     0
                 </span>
 
                 <span class="egg-capacity">
+
                     /
+
                     <span id="eggCapacity">
                         1000
                     </span>
+
                 </span>
+
             </div>
 
             <div class="egg-big-label">
@@ -640,6 +672,7 @@
             <button
                 id="exchangeButton"
                 class="primary-button"
+                type="button"
                 onclick="exchangeEggs()"
             >
                 🪙 Coinga almashtirish
@@ -655,9 +688,10 @@
             </div>
 
             <div>
-                Tovuqlaringiz avtomatik ravishda tuxum
-                ishlab chiqaradi. Tuxumlar omborga
-                yig‘iladi va keyin coinga almashtiriladi.
+                Tovuqlaringiz avtomatik ravishda
+                tuxum ishlab chiqaradi.
+                Tuxumlar omborga yig‘iladi va
+                keyin coinga almashtiriladi.
             </div>
 
         </div>
@@ -665,17 +699,20 @@
     </main>
 
 
-
     <!-- =================================================
          MINING
     ================================================== -->
 
-    <main id="page-mining" class="page">
+    <main
+        id="page-mining"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -721,6 +758,7 @@
             <button
                 id="claimMiningButton"
                 class="primary-button mining-button"
+                type="button"
                 onclick="claimMining()"
             >
                 🎁 100 Coin olish
@@ -745,17 +783,20 @@
     </main>
 
 
-
     <!-- =================================================
          DEPOSIT
     ================================================== -->
 
-    <main id="page-deposit" class="page">
+    <main
+        id="page-deposit"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -832,6 +873,7 @@
 
             <button
                 class="primary-button"
+                type="button"
                 onclick="makeDeposit()"
             >
                 📤 Depozit so‘rovini yuborish
@@ -842,17 +884,20 @@
     </main>
 
 
-
     <!-- =================================================
          WITHDRAW
     ================================================== -->
 
-    <main id="page-withdraw" class="page">
+    <main
+        id="page-withdraw"
+        class="page"
+    >
 
         <div class="page-header">
 
             <button
                 class="back-button"
+                type="button"
                 onclick="showPage('dashboard')"
             >
                 ←
@@ -931,6 +976,7 @@
 
             <button
                 class="primary-button"
+                type="button"
                 onclick="makeWithdraw()"
             >
                 📤 So‘rov yuborish
@@ -941,7 +987,6 @@
     </main>
 
 
-
     <!-- =================================================
          BOTTOM NAVIGATION
     ================================================== -->
@@ -950,6 +995,7 @@
 
         <button
             class="nav-item active"
+            type="button"
             data-page="dashboard"
             onclick="showPage('dashboard')"
         >
@@ -967,6 +1013,7 @@
 
         <button
             class="nav-item"
+            type="button"
             data-page="farm"
             onclick="showPage('farm')"
         >
@@ -984,6 +1031,7 @@
 
         <button
             class="nav-item"
+            type="button"
             data-page="shop"
             onclick="showPage('shop')"
         >
@@ -1001,6 +1049,7 @@
 
         <button
             class="nav-item"
+            type="button"
             data-page="eggs"
             onclick="showPage('eggs')"
         >
@@ -1018,6 +1067,7 @@
 
         <button
             class="nav-item"
+            type="button"
             data-page="mining"
             onclick="showPage('mining')"
         >
@@ -1034,7 +1084,6 @@
 
     </nav>
 
-
 </div>
 
 
@@ -1046,6 +1095,7 @@
     id="toast"
     class="toast"
 >
+
     <span id="toastIcon">
         ✅
     </span>
@@ -1053,6 +1103,7 @@
     <span id="toastText">
         Tayyor
     </span>
+
 </div>
 
 
@@ -1090,6 +1141,7 @@
 
         <button
             class="primary-button"
+            type="button"
             onclick="closeModal()"
         >
             Tushunarli
@@ -1101,1580 +1153,8 @@
 
 
 <!-- =====================================================
-     JAVASCRIPT
+     APP.JS
 ===================================================== -->
-
-<script>
-
-    /*
-    ========================================================
-    TELEGRAM WEB APP
-    ========================================================
-    */
-
-    const tg = window.Telegram?.WebApp;
-
-
-    if (tg) {
-
-        tg.ready();
-
-        tg.expand();
-
-        tg.enableClosingConfirmation();
-
-        if (tg.setHeaderColor) {
-            tg.setHeaderColor(
-                "secondary_bg_color"
-            );
-        }
-
-        if (tg.setBackgroundColor) {
-            tg.setBackgroundColor(
-                "bg_color"
-            );
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    API MANZIL
-    ========================================================
-    
-    GitHub Pages faqat frontendni ishlatadi.
-    API esa Render/Railway kabi serverda ishlashi kerak.
-
-    Keyinchalik shu URL'ni o'zingizning API URL'ingizga
-    almashtirasiz.
-
-    Masalan:
-
-    https://chicken-farm-api.onrender.com
-    */
-
-    const API_URL =
-        localStorage.getItem("CHICKEN_API_URL")
-        || "https://YOUR-API-DOMAIN.onrender.com";
-
-
-    /*
-    ========================================================
-    GLOBAL
-    ========================================================
-    */
-
-    let appData = null;
-
-    let miningRemaining = 0;
-
-    let miningInterval = null;
-
-
-    /*
-    ========================================================
-    TELEGRAM INIT DATA
-    ========================================================
-    */
-
-    function getInitData() {
-
-        if (
-            tg &&
-            tg.initData
-        ) {
-            return tg.initData;
-        }
-
-        return "";
-
-    }
-
-
-    /*
-    ========================================================
-    API REQUEST
-    ========================================================
-    */
-
-    async function apiRequest(
-        endpoint,
-        options = {}
-    ) {
-
-        const headers = {
-
-            "Content-Type":
-                "application/json",
-
-            "X-Telegram-Init-Data":
-                getInitData(),
-
-            ...(options.headers || {})
-
-        };
-
-
-        const response =
-            await fetch(
-                API_URL + endpoint,
-                {
-                    ...options,
-                    headers
-                }
-            );
-
-
-        let data = {};
-
-        try {
-
-            data =
-                await response.json();
-
-        } catch (e) {
-
-            data = {};
-
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                data.message ||
-                "Server xatosi"
-            );
-
-        }
-
-
-        return data;
-
-    }
-
-
-    /*
-    ========================================================
-    FORMAT NUMBER
-    ========================================================
-    */
-
-    function formatNumber(number) {
-
-        return Number(
-            number || 0
-        ).toLocaleString(
-            "uz-UZ"
-        );
-
-    }
-
-
-    /*
-    ========================================================
-    LOADING
-    ========================================================
-    */
-
-    function setLoadingProgress(
-        percent
-    ) {
-
-        const bar =
-            document.getElementById(
-                "loadingProgress"
-            );
-
-        if (bar) {
-
-            bar.style.width =
-                percent + "%";
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    APP START
-    ========================================================
-    */
-
-    async function startApp() {
-
-        try {
-
-            setLoadingProgress(20);
-
-            await new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        200
-                    )
-            );
-
-
-            setLoadingProgress(50);
-
-
-            /*
-            Telegram WebApp ochilgan bo'lsa
-            */
-
-            if (
-                tg &&
-                tg.initData
-            ) {
-
-                await loadDashboard();
-
-            } else {
-
-                /*
-                Telegramsiz test rejimi
-                */
-
-                showToast(
-                    "⚠️ Telegram WebApp ichida oching",
-                    "warning"
-                );
-
-            }
-
-
-            setLoadingProgress(100);
-
-
-            await new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        300
-                    )
-            );
-
-
-            document
-                .getElementById(
-                    "loadingScreen"
-                )
-                .classList.add(
-                    "hidden"
-                );
-
-
-            document
-                .getElementById(
-                    "app"
-                )
-                .classList.remove(
-                    "hidden"
-                );
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            setLoadingProgress(100);
-
-
-            document
-                .getElementById(
-                    "loadingScreen"
-                )
-                .classList.add(
-                    "hidden"
-                );
-
-
-            document
-                .getElementById(
-                    "app"
-                )
-                .classList.remove(
-                    "hidden"
-                );
-
-
-            showToast(
-                error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    DASHBOARD YUKLASH
-    ========================================================
-    */
-
-    async function loadDashboard() {
-
-        const data =
-            await apiRequest(
-                "/api/dashboard"
-            );
-
-
-        appData = data;
-
-
-        /*
-        USER
-        */
-
-        const user =
-            data.user || {};
-
-
-        const firstName =
-            user.first_name ||
-            "Fermer";
-
-
-        document
-            .getElementById(
-                "userName"
-            )
-            .textContent =
-                firstName;
-
-
-        document
-            .getElementById(
-                "welcomeName"
-            )
-            .textContent =
-                "Xush kelibsiz, " +
-                firstName + "!";
-
-
-        /*
-        BALANCE
-        */
-
-        document
-            .getElementById(
-                "balance"
-            )
-            .textContent =
-                formatNumber(
-                    data.balance
-                );
-
-
-        /*
-        EGGS
-        */
-
-        document
-            .getElementById(
-                "eggCount"
-            )
-            .textContent =
-                formatNumber(
-                    data.eggs
-                );
-
-
-        document
-            .getElementById(
-                "eggStorage"
-            )
-            .textContent =
-                formatNumber(
-                    data.eggs
-                );
-
-
-        document
-            .getElementById(
-                "eggCapacity"
-            )
-            .textContent =
-                formatNumber(
-                    data.egg_capacity
-                );
-
-
-        document
-            .getElementById(
-                "storageCount"
-            )
-            .textContent =
-                formatNumber(
-                    data.eggs
-                ) +
-                "/" +
-                formatNumber(
-                    data.egg_capacity
-                );
-
-
-        /*
-        CHICKENS
-        */
-
-        document
-            .getElementById(
-                "chickenCount"
-            )
-            .textContent =
-                formatNumber(
-                    data.total_chickens
-                );
-
-
-        /*
-        EGG PROGRESS
-        */
-
-        const capacity =
-            Number(
-                data.egg_capacity || 1000
-            );
-
-
-        const eggs =
-            Number(
-                data.eggs || 0
-            );
-
-
-        const percentage =
-            Math.min(
-                100,
-                (eggs / capacity) * 100
-            );
-
-
-        document
-            .getElementById(
-                "eggProgress"
-            )
-            .style.width =
-                percentage + "%";
-
-
-        /*
-        FARM
-        */
-
-        renderFarm(
-            data.chickens || []
-        );
-
-
-        /*
-        WITHDRAW BALANCE
-        */
-
-        document
-            .getElementById(
-                "withdrawBalance"
-            )
-            .textContent =
-                formatNumber(
-                    data.balance
-                ) +
-                " coin";
-
-
-        /*
-        PAYMENT CARD
-        */
-
-        if (
-            data.settings &&
-            data.settings.card_number
-        ) {
-
-            document
-                .getElementById(
-                    "paymentCard"
-                )
-                .textContent =
-                    data.settings.card_number;
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    FARM RENDER
-    ========================================================
-    */
-
-    function renderFarm(
-        chickens
-    ) {
-
-        const container =
-            document.getElementById(
-                "farmList"
-            );
-
-
-        if (
-            !chickens ||
-            chickens.length === 0
-        ) {
-
-            container.innerHTML = `
-
-                <div class="empty-state">
-
-                    <div class="empty-icon">
-                        🐔
-                    </div>
-
-                    <div class="empty-title">
-                        Hali tovuq yo‘q
-                    </div>
-
-                    <div class="empty-text">
-                        Fermangizni rivojlantirish uchun
-                        birinchi tovuqni sotib oling.
-                    </div>
-
-                    <button
-                        class="primary-button"
-                        onclick="showPage('shop')"
-                    >
-                        🛒 Tovuq sotib olish
-                    </button>
-
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        container.innerHTML =
-            chickens.map(
-                chicken => {
-
-                    const level =
-                        chicken.level;
-
-
-                    const count =
-                        chicken.count;
-
-
-                    const icons = {
-
-                        1: "🐔",
-
-                        2: "🐓",
-
-                        3: "🦃"
-
-                    };
-
-
-                    const rates = {
-
-                        1: 1,
-
-                        2: 3,
-
-                        3: 8
-
-                    };
-
-
-                    return `
-
-                        <div class="farm-card">
-
-                            <div class="farm-chicken">
-                                ${icons[level] || "🐔"}
-                            </div>
-
-                            <div class="farm-info">
-
-                                <div class="farm-level">
-                                    Lv.${level} Tovuq
-                                </div>
-
-                                <div class="farm-count">
-                                    ${formatNumber(count)} ta
-                                </div>
-
-                                <div class="farm-production">
-                                    🥚 ${formatNumber(
-                                        rates[level] * count
-                                    )} tuxum / daqiqa
-                                </div>
-
-                            </div>
-
-                            <div class="farm-status">
-                                ⚡ Ishlayapti
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-    }
-
-
-    /*
-    ========================================================
-    PAGE
-    ========================================================
-    */
-
-    function showPage(
-        page
-    ) {
-
-        document
-            .querySelectorAll(
-                ".page"
-            )
-            .forEach(
-                element => {
-
-                    element.classList.remove(
-                        "active"
-                    );
-
-                }
-            );
-
-
-        const target =
-            document.getElementById(
-                "page-" + page
-            );
-
-
-        if (target) {
-
-            target.classList.add(
-                "active"
-            );
-
-        }
-
-
-        document
-            .querySelectorAll(
-                ".nav-item"
-            )
-            .forEach(
-                item => {
-
-                    item.classList.remove(
-                        "active"
-                    );
-
-
-                    if (
-                        item.dataset.page ===
-                        page
-                    ) {
-
-                        item.classList.add(
-                            "active"
-                        );
-
-                    }
-
-                }
-            );
-
-
-        window.scrollTo(
-            0,
-            0
-        );
-
-
-        if (
-            page === "eggs"
-        ) {
-
-            loadDashboard();
-
-        }
-
-
-        if (
-            page === "mining"
-        ) {
-
-            loadMining();
-
-        }
-
-
-        if (
-            page === "farm"
-        ) {
-
-            loadDashboard();
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    BUY CHICKEN
-    ========================================================
-    */
-
-    async function buyChicken(
-        level
-    ) {
-
-        const prices = {
-
-            1: 1000,
-
-            2: 5000,
-
-            3: 15000
-
-        };
-
-
-        const price =
-            prices[level];
-
-
-        const confirmed =
-            confirm(
-                `Lv.${level} tovuqni ${formatNumber(price)} coin ga sotib olasizmi?`
-            );
-
-
-        if (!confirmed) {
-
-            return;
-
-        }
-
-
-        try {
-
-            showToast(
-                "⏳ Sotib olinmoqda...",
-                "info"
-            );
-
-
-            const result =
-                await apiRequest(
-                    "/api/chicken/buy",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-                                level
-                            })
-                    }
-                );
-
-
-            showToast(
-                result.message ||
-                `🎉 Lv.${level} tovuq olindi!`,
-                "success"
-            );
-
-
-            await loadDashboard();
-
-
-            showPage(
-                "farm"
-            );
-
-
-        } catch (error) {
-
-            showToast(
-                "❌ " + error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    EGGS
-    ========================================================
-    */
-
-    async function exchangeEggs() {
-
-        try {
-
-            const result =
-                await apiRequest(
-                    "/api/eggs/exchange",
-                    {
-                        method: "POST"
-                    }
-                );
-
-
-            showToast(
-                result.message ||
-                "🥚 Tuxumlar coinga almashtirildi!",
-                "success"
-            );
-
-
-            await loadDashboard();
-
-
-        } catch (error) {
-
-            showToast(
-                "❌ " + error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    MINING
-    ========================================================
-    */
-
-    async function loadMining() {
-
-        try {
-
-            const data =
-                await apiRequest(
-                    "/api/mining"
-                );
-
-
-            miningRemaining =
-                Number(
-                    data.remaining || 0
-                );
-
-
-            updateMiningUI();
-
-
-            if (
-                miningInterval
-            ) {
-
-                clearInterval(
-                    miningInterval
-                );
-
-            }
-
-
-            miningInterval =
-                setInterval(
-                    () => {
-
-                        if (
-                            miningRemaining > 0
-                        ) {
-
-                            miningRemaining--;
-
-                            updateMiningUI();
-
-                        }
-
-                    },
-                    1000
-                );
-
-
-        } catch (error) {
-
-            document
-                .getElementById(
-                    "miningTimer"
-                )
-                .textContent =
-                    "Server bilan bog‘lanib bo‘lmadi";
-
-        }
-
-    }
-
-
-    function updateMiningUI() {
-
-        const timer =
-            document.getElementById(
-                "miningTimer"
-            );
-
-
-        const button =
-            document.getElementById(
-                "claimMiningButton"
-            );
-
-
-        if (
-            miningRemaining <= 0
-        ) {
-
-            timer.textContent =
-                "🎉 Bonus tayyor!";
-
-
-            button.disabled =
-                false;
-
-
-            button.textContent =
-                "🎁 100 Coin olish";
-
-
-            return;
-
-        }
-
-
-        button.disabled =
-            true;
-
-
-        button.textContent =
-            "⏳ Kutilmoqda...";
-
-
-        const hours =
-            Math.floor(
-                miningRemaining /
-                3600
-            );
-
-
-        const minutes =
-            Math.floor(
-                (miningRemaining % 3600) /
-                60
-            );
-
-
-        const seconds =
-                miningRemaining %
-                60;
-
-
-        timer.textContent =
-            `Keyingi bonus: ${
-                String(hours).padStart(2, "0")
-            }:${
-                String(minutes).padStart(2, "0")
-            }:${
-                String(seconds).padStart(2, "0")
-            }`;
-
-    }
-
-
-    async function claimMining() {
-
-        if (
-            miningRemaining > 0
-        ) {
-
-            return;
-
-        }
-
-
-        try {
-
-            const result =
-                await apiRequest(
-                    "/api/mining/claim",
-                    {
-                        method: "POST"
-                    }
-                );
-
-
-            showToast(
-                result.message ||
-                "🎉 +100 coin olindi!",
-                "success"
-            );
-
-
-            await loadDashboard();
-
-            await loadMining();
-
-
-        } catch (error) {
-
-            showToast(
-                "❌ " + error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    DEPOSIT
-    ========================================================
-    */
-
-    async function makeDeposit() {
-
-        const amount =
-            Number(
-                document
-                    .getElementById(
-                        "depositAmount"
-                    )
-                    .value
-            );
-
-
-        const proof =
-            document
-                .getElementById(
-                    "depositProof"
-                )
-                .value
-                .trim();
-
-
-        if (
-            !amount ||
-            amount < 5000
-        ) {
-
-            showToast(
-                "❌ Minimal depozit 5 000 coin",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        try {
-
-            const result =
-                await apiRequest(
-                    "/api/deposit",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-
-                                amount,
-
-                                proof
-
-                            })
-                    }
-                );
-
-
-            showToast(
-                result.message ||
-                "✅ Depozit so‘rovi yuborildi!",
-                "success"
-            );
-
-
-            document
-                .getElementById(
-                    "depositAmount"
-                )
-                .value = "";
-
-
-            document
-                .getElementById(
-                    "depositProof"
-                )
-                .value = "";
-
-
-        } catch (error) {
-
-            showToast(
-                "❌ " + error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    WITHDRAW
-    ========================================================
-    */
-
-    async function makeWithdraw() {
-
-        const amount =
-            Number(
-                document
-                    .getElementById(
-                        "withdrawAmount"
-                    )
-                    .value
-            );
-
-
-        const card =
-            document
-                .getElementById(
-                    "withdrawCard"
-                )
-                .value
-                .trim();
-
-
-        const name =
-            document
-                .getElementById(
-                    "withdrawName"
-                )
-                .value
-                .trim();
-
-
-        if (
-            !amount ||
-            amount < 10000
-        ) {
-
-            showToast(
-                "❌ Minimal chiqarish 10 000 coin",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            !card
-        ) {
-
-            showToast(
-                "❌ Karta raqamini kiriting",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            !name
-        ) {
-
-            showToast(
-                "❌ Ism-sharifni kiriting",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        try {
-
-            const result =
-                await apiRequest(
-                    "/api/withdraw",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-
-                                amount,
-
-                                card,
-
-                                name
-
-                            })
-                    }
-                );
-
-
-            showToast(
-                result.message ||
-                "✅ Pul chiqarish so‘rovi yuborildi!",
-                "success"
-            );
-
-
-            document
-                .getElementById(
-                    "withdrawAmount"
-                )
-                .value = "";
-
-
-            document
-                .getElementById(
-                    "withdrawCard"
-                )
-                .value = "";
-
-
-            document
-                .getElementById(
-                    "withdrawName"
-                )
-                .value = "";
-
-
-            await loadDashboard();
-
-
-        } catch (error) {
-
-            showToast(
-                "❌ " + error.message,
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    THEME
-    ========================================================
-    */
-
-    function toggleTheme() {
-
-        const html =
-            document.documentElement;
-
-
-        const dark =
-            html.classList.toggle(
-                "dark"
-            );
-
-
-        localStorage.setItem(
-            "chicken-theme",
-            dark
-                ? "dark"
-                : "light"
-        );
-
-
-        document
-            .getElementById(
-                "themeButton"
-            )
-            .textContent =
-                dark
-                    ? "☀️"
-                    : "🌙";
-
-
-        if (
-            tg &&
-            tg.setHeaderColor
-        ) {
-
-            tg.setHeaderColor(
-                dark
-                    ? "#17212b"
-                    : "#ffffff"
-            );
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    LOAD THEME
-    ========================================================
-    */
-
-    function loadTheme() {
-
-        const saved =
-            localStorage.getItem(
-                "chicken-theme"
-            );
-
-
-        if (
-            saved === "dark"
-        ) {
-
-            document.documentElement
-                .classList.add(
-                    "dark"
-                );
-
-
-            document
-                .getElementById(
-                    "themeButton"
-                )
-                .textContent =
-                    "☀️";
-
-        }
-
-    }
-
-
-    /*
-    ========================================================
-    TOAST
-    ========================================================
-    */
-
-    function showToast(
-        message,
-        type = "success"
-    ) {
-
-        const toast =
-            document.getElementById(
-                "toast"
-            );
-
-
-        const text =
-            document.getElementById(
-                "toastText"
-            );
-
-
-        const icon =
-            document.getElementById(
-                "toastIcon"
-            );
-
-
-        text.textContent =
-            message;
-
-
-        const icons = {
-
-            success: "✅",
-
-            error: "❌",
-
-            warning: "⚠️",
-
-            info: "ℹ️"
-
-        };
-
-
-        icon.textContent =
-            icons[type] ||
-            "ℹ️";
-
-
-        toast.className =
-            "toast show " +
-            type;
-
-
-        setTimeout(
-            () => {
-
-                toast.classList.remove(
-                    "show"
-                );
-
-            },
-            3000
-        );
-
-    }
-
-
-    /*
-    ========================================================
-    MODAL
-    ========================================================
-    */
-
-    function openModal(
-        title,
-        text,
-        icon = "🐔"
-    ) {
-
-        document
-            .getElementById(
-                "modalIcon"
-            )
-            .textContent =
-                icon;
-
-
-        document
-            .getElementById(
-                "modalTitle"
-            )
-            .textContent =
-                title;
-
-
-        document
-            .getElementById(
-                "modalText"
-            )
-            .textContent =
-                text;
-
-
-        document
-            .getElementById(
-                "modal"
-            )
-            .classList.remove(
-                "hidden"
-            );
-
-    }
-
-
-    function closeModal() {
-
-        document
-            .getElementById(
-                "modal"
-            )
-            .classList.add(
-                "hidden"
-            );
-
-    }
-
-
-    /*
-    ========================================================
-    TELEGRAM MAIN BUTTON
-    ========================================================
-    */
-
-    if (
-        tg &&
-        tg.MainButton
-    ) {
-
-        tg.MainButton.hide();
-
-    }
-
-
-    /*
-    ========================================================
-    INIT
-    ========================================================
-    */
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        () => {
-
-            loadTheme();
-
-            startApp();
-
-        }
-    );
-
-
-    /*
-    ========================================================
-    TELEGRAM BACK BUTTON
-    ========================================================
-    */
-
-       if (
-        tg &&
-        tg.BackButton
-    ) {
-
-        tg.BackButton.onClick(
-            () => {
-
-                showPage("dashboard");
-
-                tg.BackButton.hide();
-
-            }
-        );
-
-    }
-
-</script>
 
 <script src="app.js"></script>
 
