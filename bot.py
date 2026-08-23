@@ -85,85 +85,184 @@ def is_admin(user_id: int) -> bool:
 # =========================================================
 
 async def migrate_database():
-
     dbx = await db()
 
-    # Ethereum wallet / payment turi uchun ustunlar
-    try:
+    # =====================================================
+    # ASOSIY JADVALLAR
+    # =====================================================
+
+    await dbx.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT ''
+        )
+    """)
+
+    await dbx.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT DEFAULT '',
+            first_name TEXT DEFAULT '',
+            balance INTEGER NOT NULL DEFAULT 10000,
+            eggs INTEGER NOT NULL DEFAULT 0,
+            storage_capacity INTEGER NOT NULL DEFAULT 1000,
+            last_mining INTEGER NOT NULL DEFAULT 0,
+            has_deposited INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        )
+    """)
+
+    await dbx.execute("""
+        CREATE TABLE IF NOT EXISTS chickens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            level INTEGER NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(user_id, level)
+        )
+    """)
+
+    await dbx.execute("""
+        CREATE TABLE IF NOT EXISTS deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL DEFAULT 0,
+            proof TEXT DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at INTEGER NOT NULL,
+            method TEXT DEFAULT 'card',
+            tx_hash TEXT DEFAULT ''
+        )
+    """)
+
+    await dbx.execute("""
+        CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL DEFAULT 0,
+            card TEXT DEFAULT '',
+            name TEXT DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at INTEGER NOT NULL,
+            method TEXT DEFAULT 'card',
+            wallet TEXT DEFAULT ''
+        )
+    """)
+
+    # =====================================================
+    # SETTINGS DEFAULT
+    # =====================================================
+
+    defaults = {
+        "ethereum_wallet": "",
+        "card_number": "",
+        "chicken_price_1": "1000",
+        "chicken_price_2": "5000",
+        "chicken_price_3": "15000",
+        "egg_exchange_rate": "10",
+        "mining_bonus": "100",
+        "mining_cooldown": "3600",
+    }
+
+    for key, value in defaults.items():
         await dbx.execute(
             """
-            ALTER TABLE withdrawals
-            ADD COLUMN method TEXT DEFAULT 'card'
-            """
+            INSERT OR IGNORE INTO settings(key, value)
+            VALUES(?, ?)
+            """,
+            (key, value)
         )
-    except Exception:
-        pass
 
-    try:
-        await dbx.execute(
-            """
-            ALTER TABLE withdrawals
-            ADD COLUMN wallet TEXT DEFAULT ''
-            """
+    # =====================================================
+    # ESKI DATABASE UCHUN MIGRATION
+    # =====================================================
+
+    async def add_column_if_missing(table, column, definition):
+        cursor = await dbx.execute(
+            f"PRAGMA table_info({table})"
         )
-    except Exception:
-        pass
 
-    try:
-        await dbx.execute(
-            """
-            ALTER TABLE deposits
-            ADD COLUMN method TEXT DEFAULT 'card'
-            """
-        )
-    except Exception:
-        pass
+        columns = await cursor.fetchall()
 
-    try:
-        await dbx.execute(
-            """
-            ALTER TABLE deposits
-            ADD COLUMN tx_hash TEXT DEFAULT ''
-            """
-        )
-    except Exception:
-        pass
+        column_names = {
+            row[1]
+            for row in columns
+        }
 
-    # Ethereum wallet setting
-    await dbx.execute(
-        """
-        INSERT OR IGNORE INTO settings(key,value)
-        VALUES('ethereum_wallet','')
-        """
+        if column not in column_names:
+            try:
+                await dbx.execute(
+                    f"""
+                    ALTER TABLE {table}
+                    ADD COLUMN {column} {definition}
+                    """
+                )
+            except Exception as e:
+                logging.warning(
+                    "Column qo‘shishda xato %s.%s: %s",
+                    table,
+                    column,
+                    e
+                )
+
+    await add_column_if_missing(
+        "withdrawals",
+        "method",
+        "TEXT DEFAULT 'card'"
     )
 
-    # Tovuq narxlari
-    await dbx.execute(
-        """
-        INSERT OR IGNORE INTO settings(key,value)
-        VALUES('chicken_price_1','1000')
-        """
+    await add_column_if_missing(
+        "withdrawals",
+        "wallet",
+        "TEXT DEFAULT ''"
     )
 
-    await dbx.execute(
-        """
-        INSERT OR IGNORE INTO settings(key,value)
-        VALUES('chicken_price_2','5000')
-        """
+    await add_column_if_missing(
+        "deposits",
+        "method",
+        "TEXT DEFAULT 'card'"
     )
 
-    await dbx.execute(
-        """
-        INSERT OR IGNORE INTO settings(key,value)
-        VALUES('chicken_price_3','15000')
-        """
+    await add_column_if_missing(
+        "deposits",
+        "tx_hash",
+        "TEXT DEFAULT ''"
     )
+
+    # =====================================================
+    # INDEXLAR
+    # =====================================================
+
+    await dbx.execute("""
+        CREATE INDEX IF NOT EXISTS idx_chickens_user
+        ON chickens(user_id)
+    """)
+
+    await dbx.execute("""
+        CREATE INDEX IF NOT EXISTS idx_deposits_user
+        ON deposits(user_id)
+    """)
+
+    await dbx.execute("""
+        CREATE INDEX IF NOT EXISTS idx_deposits_status
+        ON deposits(status)
+    """)
+
+    await dbx.execute("""
+        CREATE INDEX IF NOT EXISTS idx_withdrawals_user
+        ON withdrawals(user_id)
+    """)
+
+    await dbx.execute("""
+        CREATE INDEX IF NOT EXISTS idx_withdrawals_status
+        ON withdrawals(status)
+    """)
 
     await dbx.commit()
     await dbx.close()
 
     logging.info(
-        "✅ Database migration tekshirildi."
+        "✅ Database yaratildi va migration muvaffaqiyatli tugadi."
     )
 
 
