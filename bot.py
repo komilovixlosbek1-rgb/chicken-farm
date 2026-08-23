@@ -1,6 +1,6 @@
-
 import asyncio
 import logging
+import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
@@ -15,9 +15,17 @@ from aiogram.types import (
 # SOZLAMALAR
 # =========================================================
 
-BOT_TOKEN = "8932236127:AAEHytxxo5S88GBL1HFN94BErEyid-O5Ue4"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 MINI_APP_URL = "https://chicken-farm-630z.onrender.com"
+
+
+# =========================================================
+# TEKSHIRISH
+# =========================================================
+
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN Render Environment Variables'da topilmadi!")
 
 
 # =========================================================
@@ -46,7 +54,6 @@ dp = Dispatcher()
 async def start_command(message: Message):
 
     user = message.from_user
-
     first_name = user.first_name or "Fermer"
 
     keyboard = InlineKeyboardMarkup(
@@ -98,6 +105,5 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
 
-        logging.info(
-            "Bot to‘xtatildi."
-        )
+        logging.info("Bot to‘xtatildi.")
+
