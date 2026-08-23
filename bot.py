@@ -15,7 +15,7 @@ from aiogram.types import (
 # SOZLAMALAR
 # =========================================================
 
-BOT_TOKEN = "BU_YERGA_BOT_TOKENINGIZNI_QOYING"
+BOT_TOKEN = "8932236127:AAEHytxxo5S88GBL1HFN94BErEyid-O5Ue4"
 
 MINI_APP_URL = "https://chicken-farm-630z.onrender.com"
 
