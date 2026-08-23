@@ -6,7 +6,7 @@ const tg = window.Telegram?.WebApp;
 
 const API_URL =
     localStorage.getItem("CHICKEN_API_URL") ||
-    "https://YOUR-API-DOMAIN.onrender.com";
+    "https://chicken-farm-630z.onrender.com";
 
 let appData = null;
 let miningRemaining = 0;
