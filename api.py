@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from database import (
@@ -290,12 +291,7 @@ class AdminWithdrawAction(BaseModel):
 
 @app.get("/")
 async def root():
-
-    return {
-        "status": "ok",
-        "message": "🐔 Chicken Farm API ishlayapti!",
-        "version": "2.0.0"
-    }
+    return FileResponse("index.html")
 
 
 @app.get("/health")
@@ -732,7 +728,6 @@ async def withdraw(
             detail="Ethereum wallet manzilini kiriting"
         )
 
-    # Ethereum manzili odatda 0x bilan boshlanadi
     if not wallet.startswith("0x") or len(wallet) != 42:
 
         raise HTTPException(
@@ -1845,7 +1840,6 @@ async def admin_withdraw_reject(
             detail="Bu withdraw allaqachon ko'rib chiqilgan"
         )
 
-    # Rad etilganda foydalanuvchiga coin qaytariladi
     await db.execute(
         """
         UPDATE users
