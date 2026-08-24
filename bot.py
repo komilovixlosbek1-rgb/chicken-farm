@@ -466,7 +466,8 @@ async def admin_command(message: Message):
 # =========================================================
 
 @dp.callback_query(F.data == "admin_home")
-async def admin_home(callback: CallbackQuery):
+async def admin_home(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
 
@@ -492,7 +493,7 @@ async def admin_home(callback: CallbackQuery):
 # =========================================================
 
 @dp.callback_query(F.data == "admin_balance")
-async def admin_balance(callback: CallbackQuery):
+async def admin_balance(callback: CallbackQuery, state: FSMContext):
 
     if not is_admin(callback.from_user.id):
         return
@@ -511,7 +512,7 @@ async def admin_balance(callback: CallbackQuery):
 
     await callback.answer()
 
-    await AdminStates.balance.set()
+    await state.set_state(AdminStates.balance)
 
 
 @dp.message(AdminStates.balance)
@@ -598,7 +599,7 @@ async def balance_state(
 # =========================================================
 
 @dp.callback_query(F.data == "admin_chicken")
-async def admin_chicken(callback: CallbackQuery):
+async def admin_chicken(callback: CallbackQuery, state: FSMContext):
 
     if not is_admin(callback.from_user.id):
         return
@@ -618,7 +619,7 @@ async def admin_chicken(callback: CallbackQuery):
 
     await callback.answer()
 
-    await AdminStates.chicken.set()
+    await state.set_state(AdminStates.chicken)
 
 
 @dp.message(AdminStates.chicken)
@@ -708,7 +709,7 @@ async def chicken_state(
 # =========================================================
 
 @dp.callback_query(F.data == "admin_prices")
-async def admin_prices(callback: CallbackQuery):
+async def admin_prices(callback: CallbackQuery, state: FSMContext):
 
     if not is_admin(callback.from_user.id):
         return
@@ -757,7 +758,7 @@ async def admin_prices(callback: CallbackQuery):
 
     await callback.answer()
 
-    await AdminStates.price.set()
+    await state.set_state(AdminStates.price)
 
 
 @dp.message(AdminStates.price)
@@ -824,7 +825,7 @@ async def price_state(
 
 @dp.callback_query(F.data == "admin_egg_rate")
 async def admin_egg_rate(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
 
     if not is_admin(callback.from_user.id):
@@ -859,7 +860,7 @@ async def admin_egg_rate(
 
     await callback.answer()
 
-    await AdminStates.egg_rate.set()
+    await state.set_state(AdminStates.egg_rate)
 
 
 @dp.message(AdminStates.egg_rate)
@@ -915,8 +916,9 @@ async def egg_rate_state(
 
 @dp.callback_query(F.data == "admin_mining")
 async def admin_mining(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
@@ -955,7 +957,7 @@ async def admin_mining(
 
 @dp.callback_query(F.data == "mining_bonus")
 async def mining_bonus(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
 
     if not is_admin(callback.from_user.id):
@@ -971,7 +973,7 @@ async def mining_bonus(
 
     await callback.answer()
 
-    await AdminStates.mining_bonus.set()
+    await state.set_state(AdminStates.mining_bonus)
 
 
 @dp.message(AdminStates.mining_bonus)
@@ -1023,7 +1025,7 @@ async def mining_bonus_state(
 
 @dp.callback_query(F.data == "mining_time")
 async def mining_time(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
 
     if not is_admin(callback.from_user.id):
@@ -1040,7 +1042,7 @@ async def mining_time(
 
     await callback.answer()
 
-    await AdminStates.mining_time.set()
+    await state.set_state(AdminStates.mining_time)
 
 
 @dp.message(AdminStates.mining_time)
@@ -1096,8 +1098,9 @@ async def mining_time_state(
 
 @dp.callback_query(F.data == "admin_payment")
 async def admin_payment(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
@@ -1180,7 +1183,7 @@ async def admin_payment(
 
 @dp.callback_query(F.data == "set_card")
 async def set_card(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
 
     if not is_admin(callback.from_user.id):
@@ -1193,7 +1196,7 @@ async def set_card(
 
     await callback.answer()
 
-    await AdminStates.card.set()
+    await state.set_state(AdminStates.card)
 
 
 @dp.message(AdminStates.card)
@@ -1244,7 +1247,7 @@ async def card_state(
 
 @dp.callback_query(F.data == "set_eth")
 async def set_eth(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
 
     if not is_admin(callback.from_user.id):
@@ -1260,7 +1263,7 @@ async def set_eth(
 
     await callback.answer()
 
-    await AdminStates.ethereum.set()
+    await state.set_state(AdminStates.ethereum)
 
 
 @dp.message(AdminStates.ethereum)
@@ -1318,8 +1321,9 @@ async def ethereum_state(
 
 @dp.callback_query(F.data == "admin_deposits")
 async def admin_deposits(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
@@ -1432,7 +1436,9 @@ async def deposit_approve(
 
     cursor = await dbx.execute(
         """
-        SELECT user_id, amount
+        SELECT
+            user_id,
+            amount
         FROM deposits
         WHERE id=? AND status='pending'
         """,
@@ -1598,8 +1604,9 @@ async def deposit_reject(
     F.data == "admin_withdraws"
 )
 async def admin_withdraws(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
@@ -1959,8 +1966,9 @@ async def withdraw_reject(
     F.data == "admin_users"
 )
 async def admin_users(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
@@ -2028,8 +2036,9 @@ async def admin_users(
     F.data == "admin_stats"
 )
 async def admin_stats(
-    callback: CallbackQuery
+    callback: CallbackQuery, state: FSMContext
 ):
+    await state.clear()
 
     if not is_admin(callback.from_user.id):
         return
