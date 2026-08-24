@@ -1,4 +1,6 @@
+aiosqlite
 aiogram
 fastapi
 uvicorn
-pydantic
+aiofiles
+aiohttp
